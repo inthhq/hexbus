@@ -2,6 +2,9 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
+/**
+ * In-memory fixture files keyed by project-relative path.
+ */
 export type FixtureTree = Record<string, string>;
 
 function resolveWithinRoot(projectRoot: string, relativePath: string): string {
@@ -23,6 +26,17 @@ function resolveWithinRoot(projectRoot: string, relativePath: string): string {
   return resolved;
 }
 
+/**
+ * Creates a temporary project, writes fixture files, runs a callback, and
+ * removes the project afterward.
+ *
+ * @typeParam T - Value returned by the callback.
+ * @param fixture - Project-relative files to create.
+ * @param run - Callback that receives the temporary project root.
+ * @returns The callback result.
+ *
+ * @throws When a fixture path is absolute or escapes the project root.
+ */
 export async function withTempProject<T>(
   fixture: FixtureTree,
   run: (projectRoot: string) => Promise<T>
@@ -39,6 +53,14 @@ export async function withTempProject<T>(
   }
 }
 
+/**
+ * Writes fixture files under an existing project root.
+ *
+ * @param projectRoot - Root directory that receives fixture files.
+ * @param fixture - Project-relative files to write.
+ *
+ * @throws When a fixture path is absolute or escapes the project root.
+ */
 export async function writeFixtureTree(
   projectRoot: string,
   fixture: FixtureTree
@@ -50,6 +72,16 @@ export async function writeFixtureTree(
   }
 }
 
+/**
+ * Reads a UTF-8 fixture file from a project root.
+ *
+ * @param projectRoot - Root directory containing the fixture.
+ * @param relativePath - Project-relative file path to read.
+ * @returns File contents.
+ *
+ * @throws When the path is absolute, escapes the project root, or cannot be
+ * read.
+ */
 export async function readFixtureFile(
   projectRoot: string,
   relativePath: string
@@ -58,6 +90,20 @@ export async function readFixtureFile(
   return fs.readFile(filePath, "utf-8");
 }
 
+/**
+ * Runs a fixture-backed test callback and optionally keeps the temp project.
+ *
+ * @remarks
+ * This is useful for assertion-heavy tests that need the callback result plus,
+ * when debugging, a retained project directory for inspection.
+ *
+ * @typeParam T - Value returned by the callback.
+ * @param fixture - Project-relative files to create.
+ * @param run - Callback that receives the temporary project root.
+ * @param options - Test helper options.
+ * @returns The callback result and, when `keep` is true, the retained project
+ * root.
+ */
 export async function runAndAssert<T>(
   fixture: FixtureTree,
   run: (projectRoot: string) => Promise<T>,

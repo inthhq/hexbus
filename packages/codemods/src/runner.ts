@@ -9,12 +9,38 @@ import type {
 } from "./types";
 import { isCodemodApplicableForVersion } from "./versioning";
 
+/**
+ * Defines a codemod while preserving its generic context type.
+ *
+ * @typeParam TContext - CLI context type required by the codemod.
+ * @param definition - Codemod metadata and implementation.
+ * @returns The same definition, typed for downstream arrays and runners.
+ *
+ * @example
+ * ```ts
+ * const codemod = defineCodemod({
+ *   id: 'rename-config',
+ *   label: 'Rename config option',
+ *   async run() {
+ *     return { changedFiles: [], errors: [] };
+ *   },
+ * });
+ * ```
+ */
 export function defineCodemod<TContext extends CliContext>(
   definition: CodemodDefinition<TContext>
 ): CodemodDefinition<TContext> {
   return definition;
 }
 
+/**
+ * Logs a single codemod result in a consistent user-facing format.
+ *
+ * @param context - Context subset providing the logger.
+ * @param label - Codemod label shown in output.
+ * @param result - Codemod result to render.
+ * @param dryRun - Whether changed files should be described as hypothetical.
+ */
 export function logCodemodResult(
   context: Pick<CliContext, "logger">,
   label: string,
@@ -63,6 +89,21 @@ async function chooseCodemods<TContext extends CliContext>(
   return codemods.filter((codemod) => selectedIds.has(codemod.id));
 }
 
+/**
+ * Filters, prompts for, and runs codemods against the current project.
+ *
+ * @remarks
+ * Codemods are filtered by optional installed-version metadata before the
+ * interactive prompt is shown. Each selected codemod runs independently; thrown
+ * errors are captured into the combined result instead of aborting the whole
+ * run.
+ *
+ * @typeParam TContext - CLI context type required by all codemods.
+ * @param context - Resolved CLI context for the current project.
+ * @param codemods - Codemods available to run.
+ * @param options - Runner options such as dry-run mode and version detection.
+ * @returns Combined changed files and errors from selected codemods.
+ */
 export async function runCodemods<TContext extends CliContext>(
   context: TContext,
   codemods: CodemodDefinition<TContext>[],

@@ -1,15 +1,50 @@
 import type { CliLogger, Telemetry } from "./types";
 
+/**
+ * Options for the built-in in-memory telemetry client.
+ */
 export interface TelemetryOptions {
+  /**
+   * Disables telemetry completely.
+   */
   disabled?: boolean;
+  /**
+   * Logs queued telemetry payloads through the optional debug logger.
+   */
   debug?: boolean;
+  /**
+   * HTTP endpoint that receives telemetry batches on flush.
+   */
   endpoint?: string;
+  /**
+   * Application name included in every telemetry event.
+   *
+   * @default "cli"
+   */
   appName?: string;
+  /**
+   * Environment variable prefix used for opt-out detection.
+   *
+   * @remarks
+   * A prefix of `MY_CLI` reads `MY_CLI_TELEMETRY_DISABLED`.
+   *
+   * @default "APP"
+   */
   envVarPrefix?: string;
+  /**
+   * Properties merged into every telemetry event before event-specific
+   * properties.
+   */
   defaultProperties?: Record<string, unknown>;
+  /**
+   * Logger used for debug payload output and flush warnings.
+   */
   logger?: Pick<CliLogger, "debug" | "warn">;
 }
 
+/**
+ * Standard telemetry event names emitted by Hexbus runtime helpers.
+ */
 export const TelemetryEventName = {
   CLI_COMPLETED: "cli_completed",
   CLI_ENVIRONMENT_DETECTED: "cli_environment_detected",
@@ -25,6 +60,9 @@ export const TelemetryEventName = {
   VERSION_DISPLAYED: "version_displayed",
 } as const;
 
+/**
+ * Union of standard telemetry event name string values.
+ */
 export type TelemetryEventNameType =
   (typeof TelemetryEventName)[keyof typeof TelemetryEventName];
 
@@ -33,6 +71,12 @@ function isEnvDisabled(prefix: string): boolean {
   return value === "1" || value === "true";
 }
 
+/**
+ * Creates a no-op telemetry client.
+ *
+ * @returns A telemetry implementation whose methods do nothing and whose
+ * `isDisabled()` method returns `true`.
+ */
 export function createDisabledTelemetry(): Telemetry {
   return {
     flush: async () => {},
@@ -44,6 +88,18 @@ export function createDisabledTelemetry(): Telemetry {
   };
 }
 
+/**
+ * Creates the built-in telemetry client.
+ *
+ * @remarks
+ * Events are queued in memory. `flush()` posts the queue to `endpoint` when one
+ * is configured, then clears the queue. Failed flushes are reported through
+ * the optional logger and do not throw, keeping telemetry best effort.
+ *
+ * @param options - Telemetry behavior and event defaults.
+ * @returns An enabled or disabled telemetry client depending on options and
+ * environment opt-out variables.
+ */
 export function createTelemetry(options: TelemetryOptions = {}): Telemetry {
   const envVarPrefix = options.envVarPrefix ?? "APP";
   const disabled = options.disabled === true || isEnvDisabled(envVarPrefix);

@@ -5,7 +5,13 @@ import { Project } from "ts-morph";
 
 import type { CodemodProject, CollectOptions } from "./types";
 
+/**
+ * Default source extensions included by codemod file collection.
+ */
 export const DEFAULT_SUPPORTED_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx"];
+/**
+ * Default directory basenames skipped by codemod file collection.
+ */
 export const DEFAULT_IGNORED_DIRS = [
   ".git",
   ".next",
@@ -46,6 +52,13 @@ async function walkDirectory(
   }
 }
 
+/**
+ * Recursively collects source files below a project root.
+ *
+ * @param projectRoot - Directory to walk.
+ * @param options - Extension, ignored directory, and include filters.
+ * @returns Sorted absolute file paths matching the configured filters.
+ */
 export async function collectSourceFiles(
   projectRoot: string,
   options: CollectOptions = {}
@@ -61,6 +74,17 @@ export async function collectSourceFiles(
   return files.toSorted();
 }
 
+/**
+ * Creates a ts-morph project from collected source files.
+ *
+ * @remarks
+ * The returned `save()` method is dry-run aware. When `dryRun` is true, callers
+ * can still inspect changed source files but no writes occur.
+ *
+ * @param projectRoot - Directory to collect source files from.
+ * @param options - Collection filters and optional dry-run mode.
+ * @returns A codemod project containing the ts-morph project and source files.
+ */
 export async function createCodemodProject(
   projectRoot: string,
   options: CollectOptions & { dryRun?: boolean } = {}

@@ -3,7 +3,14 @@ import * as p from "@clack/prompts";
 import { color } from "./color";
 import type { CliLogger, LogLevel } from "./types";
 
+/**
+ * Supported log levels in ascending verbosity.
+ */
 export const LOG_LEVELS: LogLevel[] = ["error", "warn", "info", "debug"];
+/**
+ * Alias for `LOG_LEVELS` kept for callers that prefer validation-oriented
+ * naming.
+ */
 export const validLogLevels = LOG_LEVELS;
 
 const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
@@ -29,6 +36,14 @@ function formatArgs(args: unknown[]): string {
   return `\n${args.map((arg) => `  - ${safeStringify(arg)}`).join("\n")}`;
 }
 
+/**
+ * Formats a log message with a level badge and optional structured arguments.
+ *
+ * @param logLevel - Log level or custom badge label.
+ * @param message - Primary message to render.
+ * @param args - Additional values rendered as indented JSON-like bullets.
+ * @returns A formatted message string.
+ */
 export function formatLogMessage(
   logLevel: LogLevel | "success" | "failed" | string,
   message: unknown,
@@ -62,6 +77,13 @@ export function formatLogMessage(
   }
 }
 
+/**
+ * Emits a formatted message through the prompt logger.
+ *
+ * @param logLevel - Log level or custom badge label.
+ * @param message - Primary message to render.
+ * @param args - Additional values rendered below the message.
+ */
 export function logMessage(
   logLevel: LogLevel | "success" | "failed" | string,
   message: unknown,
@@ -94,6 +116,18 @@ export function logMessage(
   }
 }
 
+/**
+ * Formats a bounded progress step indicator.
+ *
+ * @remarks
+ * `current` is clamped between `0` and `total`, and `total` is clamped to at
+ * least `0` so malformed progress values still render predictably.
+ *
+ * @param current - Current step number.
+ * @param total - Total number of steps.
+ * @param label - Step label shown after the progress bar.
+ * @returns A formatted progress row.
+ */
 export function formatStep(
   current: number,
   total: number,
@@ -106,6 +140,18 @@ export function formatStep(
   return `[${filled}${empty}] Step ${safeCurrent}/${safeTotal}: ${label}`;
 }
 
+/**
+ * Creates a `CliLogger` backed by Clack prompt output.
+ *
+ * @remarks
+ * Messages below the configured verbosity are ignored for `debug`, `info`,
+ * `warn`, and `error`. Other output helpers such as `message`, `note`,
+ * `success`, `failed`, and `outro` always render because they represent
+ * explicit user interaction states rather than diagnostic verbosity.
+ *
+ * @param level - Minimum log level to emit.
+ * @returns A logger suitable for `CliContext.logger`.
+ */
 export function createCliLogger(level: LogLevel = "info"): CliLogger {
   const currentLevelPriority = LOG_LEVEL_PRIORITY[level];
   const shouldLog = (targetLevel: LogLevel) =>
@@ -156,4 +202,7 @@ export function createCliLogger(level: LogLevel = "info"): CliLogger {
   };
 }
 
+/**
+ * Shared color formatter used by logger output.
+ */
 export { color };

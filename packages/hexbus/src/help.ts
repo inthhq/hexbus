@@ -1,11 +1,32 @@
 import type { CliCommand, CliContext, CliFlag } from "./types";
 
+/**
+ * Metadata shown in the generated CLI help menu.
+ */
 export interface ShowHelpMenuOptions {
+  /**
+   * CLI application name shown in usage and title text.
+   */
   appName: string;
+  /**
+   * CLI version shown near the top of the help menu.
+   */
   version: string;
+  /**
+   * Optional documentation URL shown after commands and global flags.
+   */
   docsUrl?: string;
 }
 
+/**
+ * Renders a help menu for commands and global flags.
+ *
+ * @param context - Context subset providing the logger used for output.
+ * @param options - Application metadata for the help menu.
+ * @param commands - Commands to list; commands with `hidden: true` are
+ * omitted.
+ * @param flags - Global flags to list.
+ */
 export function showHelpMenu(
   context: Pick<CliContext, "logger">,
   options: ShowHelpMenuOptions,

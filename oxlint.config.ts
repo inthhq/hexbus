@@ -6,6 +6,7 @@ export default defineConfig({
   rules: {
     complexity: "off",
     "func-style": "off",
+    "jsdoc/check-tag-names": "off",
     "no-empty-function": "off",
     "no-nested-ternary": "off",
     "no-plusplus": "off",

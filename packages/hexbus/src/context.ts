@@ -31,24 +31,95 @@ import type {
   Telemetry,
 } from "./types";
 
+/**
+ * Options used to build a complete CLI execution context.
+ *
+ * @typeParam TPackage - Product-specific package identifier selected by
+ * framework detection.
+ */
 export interface CreateContextOptions<TPackage extends string = string> {
+  /**
+   * Raw process arguments after the executable and script path have been
+   * removed.
+   *
+   * @example process.argv.slice(2)
+   */
   rawArgs: string[];
+  /**
+   * Directory where invocation started.
+   *
+   * @default process.cwd()
+   */
   cwd?: string;
+  /**
+   * Top-level commands used to identify `commandName` during argument parsing.
+   */
   commands: CliCommand[];
+  /**
+   * Application name used for config lookup, telemetry defaults, and logger
+   * metadata.
+   *
+   * @default "cli"
+   */
   appName?: string;
+  /**
+   * Config name passed to `c12` when loading project configuration.
+   *
+   * @default appName
+   */
   configName?: string;
+  /**
+   * Telemetry configuration for the context.
+   */
   telemetry?: {
+    /**
+     * Disables telemetry regardless of command-line flags or environment
+     * variables.
+     */
     disabled?: boolean;
+    /**
+     * Emits queued telemetry payloads through the logger debug channel.
+     */
     debug?: boolean;
+    /**
+     * HTTP endpoint that receives flushed telemetry batches.
+     */
     endpoint?: string;
+    /**
+     * Environment variable prefix used to read telemetry opt-out flags.
+     *
+     * @remarks
+     * A prefix of `MY_CLI` reads `MY_CLI_TELEMETRY_DISABLED`.
+     */
     envVarPrefix?: string;
+    /**
+     * Properties merged into every telemetry event created by this context.
+     */
     defaultProperties?: Record<string, unknown>;
   };
+  /**
+   * Product package identifiers selected for framework-specific installs.
+   */
   packageMap?: {
+    /**
+     * Package used when no React framework is detected.
+     */
     core?: TPackage;
+    /**
+     * Package used for generic React-compatible projects.
+     */
     react?: TPackage;
+    /**
+     * Package used for Next.js projects.
+     */
     next?: TPackage;
   };
+  /**
+   * Allows package-manager detection to prompt when lockfile and package.json
+   * detection fail.
+   *
+   * @default false
+   */
   interactivePackageManagerDetection?: boolean;
 }
 
@@ -107,6 +178,33 @@ function createFileSystem(cwd: string): FileSystemUtils {
   };
 }
 
+/**
+ * Creates the resolved context passed to command actions.
+ *
+ * @remarks
+ * Context creation performs the standard CLI bootstrap sequence: parse global
+ * flags, create the logger, detect the project root, detect framework and
+ * package manager metadata, set up telemetry, and attach helpers for config
+ * loading, file-system access, confirmation prompts, and process-ending error
+ * handling.
+ *
+ * @typeParam TPackage - Product-specific package identifier returned from
+ * framework detection.
+ * @param options - Context creation options for the current invocation.
+ * @returns A fully initialized `CliContext`.
+ *
+ * @example
+ * ```ts
+ * const context = await createCliContext({
+ *   rawArgs: process.argv.slice(2),
+ *   appName: 'acme',
+ *   commands,
+ * });
+ *
+ * await commands.find((command) => command.name === context.commandName)
+ *   ?.action(context);
+ * ```
+ */
 export async function createCliContext<TPackage extends string = string>(
   options: CreateContextOptions<TPackage>
 ): Promise<CliContext<TPackage>> {
@@ -216,6 +314,26 @@ export async function createCliContext<TPackage extends string = string>(
   return context;
 }
 
+/**
+ * Creates a deterministic context for unit tests.
+ *
+ * @remarks
+ * The test context disables telemetry, uses an error-only logger, avoids real
+ * framework or package-manager detection, and provides no-op file-system
+ * helpers. Pass overrides to replace only the services a test needs.
+ *
+ * @param overrides - Partial context fields to merge into the default test
+ * context.
+ * @returns A `CliContext` suitable for command and helper tests.
+ *
+ * @example
+ * ```ts
+ * const context = createTestContext({
+ *   flags: { force: true },
+ *   commandName: 'init',
+ * });
+ * ```
+ */
 export function createTestContext(
   overrides: Partial<CliContext> = {}
 ): CliContext {
