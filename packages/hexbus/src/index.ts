@@ -72,3 +72,16 @@ export type {
 	ParsedArgs,
 	Telemetry,
 } from './types';
+export {
+	checkForUpdate,
+	detectInstallSource,
+	formatUpdateHint,
+	getUpdateCommand,
+	type InstallSource,
+	isVersionRequest,
+	printVersionInfo,
+	startBackgroundUpdateCheck,
+	type UpdateCheckOptions,
+	type UpdateCheckResult,
+	type VersionInfoOptions,
+} from './version-check';

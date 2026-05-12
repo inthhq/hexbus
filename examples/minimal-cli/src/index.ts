@@ -1,12 +1,31 @@
 #!/usr/bin/env bun
 
+import { readFileSync } from 'node:fs';
 import {
 	type CliCommand,
 	createCliContext,
 	displayIntro,
 	globalFlags,
+	isVersionRequest,
+	printVersionInfo,
 	showHelpMenu,
+	startBackgroundUpdateCheck,
 } from 'hexbus';
+
+interface PackageInfo {
+	name: string;
+	version: string;
+}
+
+function readOwnPackageInfo(): PackageInfo {
+	const packageJsonUrl = new URL('../package.json', import.meta.url);
+	const content = readFileSync(packageJsonUrl, 'utf-8');
+	const parsed = JSON.parse(content) as Partial<PackageInfo>;
+	return {
+		name: parsed.name ?? 'minimal-cli',
+		version: parsed.version ?? 'unknown',
+	};
+}
 
 const commands: CliCommand[] = [
 	{
@@ -20,20 +39,33 @@ const commands: CliCommand[] = [
 	},
 ];
 
+const rawArgs = process.argv.slice(2);
+const packageInfo = readOwnPackageInfo();
+const version = packageInfo.version;
+
+if (isVersionRequest(rawArgs)) {
+	await printVersionInfo({
+		appName: 'minimal-cli',
+		packageName: packageInfo.name,
+		currentVersion: version,
+	});
+	process.exit(0);
+}
+
 const context = await createCliContext({
-	rawArgs: process.argv.slice(2),
+	rawArgs,
 	commands,
 	appName: 'minimal-cli',
 	configName: 'minimal-cli',
 	interactivePackageManagerDetection: false,
 });
 
-const version = context.fs.getPackageInfo().version;
-
-if (context.flags.version) {
-	context.logger.message(`minimal-cli version ${version}`);
-	process.exit(0);
-}
+startBackgroundUpdateCheck({
+	appName: 'minimal-cli',
+	packageName: packageInfo.name,
+	currentVersion: version,
+	logger: context.logger,
+});
 
 if (context.flags.help) {
 	showHelpMenu(
