@@ -375,6 +375,14 @@ export interface Telemetry {
    */
   flush(): Promise<void>;
   /**
+   * Starts an immediate best-effort flush without requiring callers to await it.
+   *
+   * @remarks
+   * Entrypoints can call this before short-lived process exits. Implementations
+   * should not throw from this method.
+   */
+  flushBackground(): void;
+  /**
    * Performs final telemetry cleanup before process exit.
    */
   shutdown(): Promise<void>;
