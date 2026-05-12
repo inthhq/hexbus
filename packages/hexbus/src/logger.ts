@@ -1,5 +1,5 @@
 import * as p from '@clack/prompts';
-import color from 'picocolors';
+import { color } from './color';
 import type { CliLogger, LogLevel } from './types';
 
 export const LOG_LEVELS: LogLevel[] = ['error', 'warn', 'info', 'debug'];

@@ -30,6 +30,22 @@ describe('parseCliArgs', () => {
 		expect(hasFlag(parsed.parsedFlags, 'force')).toBe(true);
 	});
 
+	it('parses no-color as a global flag', () => {
+		const parsed = parseCliArgs(['setup', '--no-color'], commands);
+
+		expect(parsed.commandName).toBe('setup');
+		expect(parsed.commandArgs).toEqual([]);
+		expect(hasFlag(parsed.parsedFlags, 'no-color')).toBe(true);
+	});
+
+	it('parses color as a global flag', () => {
+		const parsed = parseCliArgs(['setup', '--color'], commands);
+
+		expect(parsed.commandName).toBe('setup');
+		expect(parsed.commandArgs).toEqual([]);
+		expect(hasFlag(parsed.parsedFlags, 'color')).toBe(true);
+	});
+
 	it('parses subcommands', () => {
 		const result = parseSubcommand(
 			['list', '--json'],
