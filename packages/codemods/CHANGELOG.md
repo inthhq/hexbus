@@ -1,5 +1,12 @@
 # @inth/hexbus-codemods
 
+## 0.2.0
+
+### Patch Changes
+
+- Updated dependencies [ab592ba]
+  - hexbus@0.2.0
+
 ## 0.1.1
 
 ### Patch Changes

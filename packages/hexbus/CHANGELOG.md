@@ -1,5 +1,11 @@
 # hexbus
 
+## 0.2.0
+
+### Minor Changes
+
+- ab592ba: updates based on the c15t migration to hexbus
+
 ## 0.1.1
 
 ### Patch Changes
