@@ -73,7 +73,7 @@ describe('detectColorSupport', () => {
 		).toBe(false);
 	});
 
-	it('disables color when NO_COLOR is present but empty', () => {
+	it('supports color when NO_COLOR is present but empty', () => {
 		expect(
 			detectColorSupport({
 				argv: [],
@@ -81,7 +81,7 @@ describe('detectColorSupport', () => {
 				platform: 'linux',
 				stdout: { isTTY: true },
 			})
-		).toBe(false);
+		).toBe(true);
 	});
 
 	it('disables color for dumb terminals', () => {
