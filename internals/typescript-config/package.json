@@ -6,6 +6,7 @@
 	"scripts": {
 		"dev": "echo '@inth/typescript-config has no watch task'",
 		"fmt": "bun biome format --write . && bun biome check --formatter-enabled=false --linter-enabled=false --write",
-		"lint": "bun biome lint ."
+		"lint": "bun biome lint .",
+		"prepublishOnly": "node -e \"throw new Error('@inth/typescript-config is internal and must not be published')\""
 	}
 }

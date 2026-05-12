@@ -18,7 +18,8 @@
 		"check-types": "tsc --noEmit",
 		"dev": "echo '@inth/vitest-config has no watch task'",
 		"lint": "bun biome lint ./src",
-		"fmt": "bun biome format --write . && bun biome check --formatter-enabled=false --linter-enabled=false --write"
+		"fmt": "bun biome format --write . && bun biome check --formatter-enabled=false --linter-enabled=false --write",
+		"prepublishOnly": "node -e \"throw new Error('@inth/vitest-config is internal and must not be published')\""
 	},
 	"dependencies": {
 		"@vitejs/plugin-react": "6.0.1",
