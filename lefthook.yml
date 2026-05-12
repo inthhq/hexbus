@@ -2,7 +2,7 @@ pre-commit:
   jobs:
     - run: |
         files="$(git diff --name-only --staged --diff-filter=ACMR | rg '\.(js|jsx|ts|tsx|json|jsonc|css)$' || true)"
-        [ -z "$files" ] || bun x ultracite fix $files
+        [ -z "$files" ] || printf '%s\n' "$files" | tr '\n' '\0' | xargs -0 bun x ultracite fix
       glob:
         - "**/*.js"
         - "**/*.jsx"

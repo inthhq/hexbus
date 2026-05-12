@@ -123,6 +123,13 @@ export interface CreateContextOptions<TPackage extends string = string> {
   interactivePackageManagerDetection?: boolean;
 }
 
+/**
+ * Resolves the active logger level from parsed CLI flags.
+ *
+ * @param parsedFlags - Parsed global flags from the current invocation.
+ * @returns A valid log level, falling back to `info` for missing or invalid
+ * values.
+ */
 function getLogLevel(parsedFlags: ParsedArgs["parsedFlags"]): LogLevel {
   const levelArg = parsedFlags.logger;
 
@@ -139,6 +146,12 @@ function getLogLevel(parsedFlags: ParsedArgs["parsedFlags"]): LogLevel {
   return "info";
 }
 
+/**
+ * Creates file-system helpers scoped to a project root.
+ *
+ * @param cwd - Project root used for package metadata lookup.
+ * @returns File-system utilities for context consumers.
+ */
 function createFileSystem(cwd: string): FileSystemUtils {
   return {
     async exists(filePath: string) {
@@ -153,11 +166,26 @@ function createFileSystem(cwd: string): FileSystemUtils {
       const packageJsonPath = path.join(cwd, "package.json");
       try {
         const content = fsSync.readFileSync(packageJsonPath, "utf-8");
-        const packageInfo = JSON.parse(content) as PackageInfo;
+        const packageInfo = JSON.parse(content) as unknown;
+        const packageFields: Record<string, unknown> =
+          packageInfo &&
+          typeof packageInfo === "object" &&
+          !Array.isArray(packageInfo)
+            ? (packageInfo as Record<string, unknown>)
+            : {};
+        const name =
+          typeof packageFields.name === "string"
+            ? packageFields.name
+            : "unknown";
+        const version =
+          typeof packageFields.version === "string"
+            ? packageFields.version
+            : "unknown";
+
         return {
-          ...packageInfo,
-          name: packageInfo.name || "unknown",
-          version: packageInfo.version || "unknown",
+          ...packageFields,
+          name: name || "unknown",
+          version: version || "unknown",
         };
       } catch {
         return {

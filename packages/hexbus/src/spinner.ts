@@ -1,4 +1,4 @@
-import * as p from "@clack/prompts";
+import { spinner as createClackSpinner } from "@clack/prompts";
 
 /**
  * Minimal spinner controller used for long-running CLI tasks.
@@ -26,17 +26,17 @@ export interface Spinner {
  * @returns A spinner controller.
  */
 export function createSpinner(initialMessage?: string): Spinner {
-  const spinner = p.spinner();
+  const spinnerInstance = createClackSpinner();
 
   return {
     message(message: string) {
-      spinner.message(message);
+      spinnerInstance.message(message);
     },
     start(message?: string) {
-      spinner.start(message ?? initialMessage ?? "Processing...");
+      spinnerInstance.start(message ?? initialMessage ?? "Processing...");
     },
     stop(message?: string) {
-      spinner.stop(message ?? "Done");
+      spinnerInstance.stop(message ?? "Done");
     },
   };
 }
@@ -61,15 +61,15 @@ export async function withSpinner<T>(
     errorMessage?: string;
   }
 ): Promise<T> {
-  const spinner = createSpinner(message);
-  spinner.start();
+  const spinnerInstance = createSpinner(message);
+  spinnerInstance.start();
 
   try {
     const result = await task();
-    spinner.stop(options?.successMessage ?? "Done");
+    spinnerInstance.stop(options?.successMessage ?? "Done");
     return result;
   } catch (error) {
-    spinner.stop(options?.errorMessage ?? "Failed");
+    spinnerInstance.stop(options?.errorMessage ?? "Failed");
     throw error;
   }
 }

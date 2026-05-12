@@ -122,10 +122,6 @@ export interface VersionInfoOptions extends UpdateCheckOptions {
    * Application name shown in version output.
    */
   appName: string;
-  /**
-   * Logger used for version output, update hints, and optional debug messages.
-   */
-  logger?: VersionInfoLogger;
 }
 
 export interface CachedVersion {

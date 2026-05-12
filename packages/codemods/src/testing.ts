@@ -82,12 +82,12 @@ export async function withTempProject<T>(
  * @throws When the path is absolute, escapes the project root, or cannot be
  * read.
  */
-export function readFixtureFile(
+export async function readFixtureFile(
   projectRoot: string,
   relativePath: string
 ): Promise<string> {
   const filePath = resolveWithinRoot(projectRoot, relativePath);
-  return fs.readFile(filePath, "utf-8");
+  return await fs.readFile(filePath, "utf-8");
 }
 
 /**

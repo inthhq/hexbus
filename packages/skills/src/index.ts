@@ -107,6 +107,15 @@ export async function installSkills(
   options: InstallSkillsOptions
 ): Promise<void> {
   const logger: SkillsLogger = options.logger ?? console;
+  const skillRef = options.skillRef.trim();
+
+  if (!skillRef) {
+    const error = new Error("skillRef cannot be empty");
+    logger.error(error.message);
+    options.onFailure?.(error);
+    return;
+  }
+
   const execCommand = getSkillsRunnerCommand(options.packageManager);
   const [cmd, ...baseArgs] = execCommand.trim().split(/\s+/).filter(Boolean);
 
@@ -119,15 +128,18 @@ export async function installSkills(
     return;
   }
 
-  logger.info(`Running: ${execCommand} skills add ${options.skillRef}`);
+  logger.info(`Running: ${execCommand} skills add ${skillRef}`);
 
   try {
-    const child = spawn(cmd, [...baseArgs, "skills", "add", options.skillRef], {
+    const child = spawn(cmd, [...baseArgs, "skills", "add", skillRef], {
       cwd: options.cwd ?? process.cwd(),
       stdio: "inherit",
     });
 
-    const [exitCode] = await once(child, "exit");
+    const [exitCode, signal] = (await once(child, "exit")) as [
+      number | null,
+      string | null,
+    ];
 
     if (exitCode === 0) {
       if (logger.success) {
@@ -140,19 +152,19 @@ export async function installSkills(
     }
 
     const error = new Error(
-      `Skills installation failed with exit code ${String(exitCode)}`
+      exitCode === null
+        ? `Skills installation was terminated by signal ${String(signal)}`
+        : `Skills installation failed with exit code ${String(exitCode)}`
     );
     logger.error(
-      `${error.message}. Install manually with: ${execCommand} skills add ${options.skillRef}`
+      `${error.message}. Install manually with: ${execCommand} skills add ${skillRef}`
     );
     options.onFailure?.(error);
   } catch (error) {
     logger.error(
       `Skills installation failed: ${error instanceof Error ? error.message : String(error)}`
     );
-    logger.info(
-      `Install manually with: ${execCommand} skills add ${options.skillRef}`
-    );
+    logger.info(`Install manually with: ${execCommand} skills add ${skillRef}`);
     options.onFailure?.(error);
   }
 }
