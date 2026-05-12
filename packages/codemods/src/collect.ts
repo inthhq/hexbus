@@ -71,7 +71,9 @@ export async function collectSourceFiles(
   const files: string[] = [];
 
   await walkDirectory(projectRoot, resolvedOptions, files);
-  return files.toSorted();
+  const sortedFiles = [...files];
+  sortedFiles.sort();
+  return sortedFiles;
 }
 
 /**

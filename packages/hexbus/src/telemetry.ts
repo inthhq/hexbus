@@ -160,13 +160,15 @@ export function createTelemetry(options: TelemetryOptions = {}): Telemetry {
       await flush();
     },
     trackCommand(command, args = [], flags = {}) {
+      const enabledFlags = Object.entries(flags)
+        .filter(([, value]) => value !== false && value !== undefined)
+        .map(([key]) => key);
+      enabledFlags.sort();
+
       trackEvent(TelemetryEventName.COMMAND_INVOKED, {
         argsCount: args.length,
         command,
-        enabledFlags: Object.entries(flags)
-          .filter(([, value]) => value !== false && value !== undefined)
-          .map(([key]) => key)
-          .toSorted(),
+        enabledFlags,
       });
     },
     trackError(error, command) {

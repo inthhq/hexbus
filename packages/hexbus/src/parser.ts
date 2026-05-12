@@ -118,6 +118,7 @@ export function parseCliArgs(
   const potentialCommandArgs: string[] = [];
   let commandName: string | undefined;
   const commandArgs: string[] = [];
+  const knownFlagSet = new Set(globalFlags.flatMap((flag) => flag.names));
 
   for (const flag of globalFlags) {
     const primaryName = getPrimaryFlagName(flag);
@@ -156,7 +157,7 @@ export function parseCliArgs(
         parsedFlags[primaryName] = true;
       } else if (flag.expectsValue) {
         const nextArg = rawArgs[i + 1];
-        if (nextArg && !nextArg.startsWith("-")) {
+        if (nextArg && !knownFlagSet.has(nextArg)) {
           parsedFlags[primaryName] = nextArg;
           i++;
         } else {

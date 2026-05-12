@@ -47,6 +47,13 @@ describe(parseCliArgs, () => {
     expect(hasFlag(parsed.parsedFlags, "color")).toBeTruthy();
   });
 
+  it("parses negative numbers as flag values", () => {
+    const parsed = parseCliArgs(["setup", "--logger", "-1"], commands);
+
+    expect(parsed.commandName).toBe("setup");
+    expect(getFlagValue(parsed.parsedFlags, "logger")).toBe("-1");
+  });
+
   it("parses subcommands", () => {
     const result = parseSubcommand(
       ["list", "--json"],

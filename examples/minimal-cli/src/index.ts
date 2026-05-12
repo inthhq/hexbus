@@ -18,14 +18,31 @@ interface PackageInfo {
   version: string;
 }
 
+function getStringProperty(
+  value: Record<string, unknown>,
+  key: "name" | "version"
+): string | undefined {
+  const property = value[key];
+  return typeof property === "string" ? property : undefined;
+}
+
 function readOwnPackageInfo(): PackageInfo {
   try {
     const packageJsonUrl = new URL("../package.json", import.meta.url);
     const content = readFileSync(packageJsonUrl, "utf-8");
-    const parsed = JSON.parse(content) as Partial<PackageInfo>;
+    const parsed: unknown = JSON.parse(content);
+
+    if (typeof parsed !== "object" || parsed === null) {
+      return {
+        name: "minimal-cli",
+        version: "unknown",
+      };
+    }
+
+    const packageInfo = parsed as Record<string, unknown>;
     return {
-      name: parsed.name ?? "minimal-cli",
-      version: parsed.version ?? "unknown",
+      name: getStringProperty(packageInfo, "name") ?? "minimal-cli",
+      version: getStringProperty(packageInfo, "version") ?? "unknown",
     };
   } catch (error) {
     throw new Error(
