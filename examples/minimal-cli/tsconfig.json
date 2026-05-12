@@ -1,8 +1,9 @@
 {
-	"extends": "@inth/typescript-config/node.json",
-	"compilerOptions": {
-		"rootDir": "src",
-		"lib": ["esnext"]
-	},
-	"include": ["src"]
+  "extends": "@inth/typescript-config/node.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "lib": ["esnext"],
+    "strictNullChecks": true
+  },
+  "include": ["src"]
 }

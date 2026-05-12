@@ -1,45 +1,50 @@
 {
-	"name": "hexbus-monorepo",
-	"private": true,
-	"description": "Opinionated CLI toolkit packages for Hexbus projects.",
-	"homepage": "https://github.com/inthhq/hexbus",
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/inthhq/hexbus.git"
-	},
-	"license": "Apache-2.0",
-	"type": "module",
-	"workspaces": [
-		"packages/*",
-		"internals/*",
-		"examples/*"
-	],
-	"scripts": {
-		"build": "turbo run build",
-		"changeset": "changeset",
-		"check-types": "turbo run check-types",
-		"fmt": "turbo run fmt",
-		"lint": "turbo run lint",
-		"lint:fix": "turbo run lint -- --write",
-		"postinstall": "lefthook install",
-		"release": "changeset publish",
-		"test": "turbo run test",
-		"version": "changeset version && bun install"
-	},
-	"devDependencies": {
-		"@biomejs/biome": "2.4.10",
-		"@changesets/cli": "2.30.0",
-		"@types/bun": "1.3.11",
-		"@types/node": "25.5.0",
-		"@vitest/coverage-istanbul": "4.1.2",
-		"lefthook": "2.1.4",
-		"tsdown": "0.22.0",
-		"turbo": "2.9.6",
-		"typescript": "6.0.2",
-		"vitest": "4.1.2"
-	},
-	"packageManager": "bun@1.3.11",
-	"engines": {
-		"node": ">=18.17.0"
-	}
+  "name": "hexbus-monorepo",
+  "private": true,
+  "description": "Opinionated CLI toolkit packages for Hexbus projects.",
+  "homepage": "https://github.com/inthhq/hexbus",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/inthhq/hexbus.git"
+  },
+  "workspaces": [
+    "packages/*",
+    "internals/*",
+    "examples/*"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "turbo run build",
+    "changeset": "changeset",
+    "check": "ultracite check",
+    "check-types": "turbo run check-types",
+    "fix": "ultracite fix",
+    "fmt": "turbo run fmt",
+    "postinstall": "lefthook install",
+    "lint": "turbo run lint",
+    "lint:fix": "turbo run lint -- --write",
+    "prepare": "lefthook install",
+    "release": "changeset publish",
+    "test": "turbo run test",
+    "version": "changeset version && bun install"
+  },
+  "devDependencies": {
+    "@changesets/cli": "2.30.0",
+    "@types/bun": "1.3.11",
+    "@types/node": "25.5.0",
+    "@vitest/coverage-istanbul": "4.1.2",
+    "lefthook": "^2.1.6",
+    "oxfmt": "^0.49.0",
+    "oxlint": "^1.64.0",
+    "tsdown": "0.22.0",
+    "turbo": "2.9.6",
+    "typescript": "6.0.2",
+    "ultracite": "7.7.0",
+    "vitest": "4.1.2"
+  },
+  "engines": {
+    "node": ">=18.17.0"
+  },
+  "packageManager": "bun@1.3.11"
 }

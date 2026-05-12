@@ -1,23 +1,24 @@
-import { describe, expect, it } from 'vitest';
-import { createDisabledTelemetry, createTelemetry } from '../telemetry';
+import { describe, expect, it } from "vitest";
 
-describe('telemetry', () => {
-	it('creates disabled telemetry', () => {
-		const telemetry = createDisabledTelemetry();
+import { createDisabledTelemetry, createTelemetry } from "../telemetry";
 
-		expect(telemetry.isDisabled()).toBe(true);
-		expect(() => telemetry.trackEvent('anything')).not.toThrow();
-	});
+describe("telemetry", () => {
+  it("creates disabled telemetry", () => {
+    const telemetry = createDisabledTelemetry();
 
-	it('can queue and flush events without an endpoint', async () => {
-		const telemetry = createTelemetry({
-			appName: 'test-cli',
-			defaultProperties: { packageName: 'test' },
-		});
+    expect(telemetry.isDisabled()).toBeTruthy();
+    expect(() => telemetry.trackEvent("anything")).not.toThrow();
+  });
 
-		telemetry.trackEvent('event');
-		telemetry.trackCommand('setup', ['arg'], { force: true });
-		expect(telemetry.isDisabled()).toBe(false);
-		await expect(telemetry.flush()).resolves.toBeUndefined();
-	});
+  it("can queue and flush events without an endpoint", async () => {
+    const telemetry = createTelemetry({
+      appName: "test-cli",
+      defaultProperties: { packageName: "test" },
+    });
+
+    telemetry.trackEvent("event");
+    telemetry.trackCommand("setup", ["arg"], { force: true });
+    expect(telemetry.isDisabled()).toBeFalsy();
+    await expect(telemetry.flush()).resolves.toBeUndefined();
+  });
 });

@@ -1,8 +1,12 @@
 pre-commit:
-  commands:
-    check:
-      glob: "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}"
-      run: bunx @biomejs/biome check --write --formatter-enabled=true --linter-enabled=false --assist-enabled=true {staged_files}
+  jobs:
+    - run: bun x ultracite fix
+      glob:
+        - "**/*.js"
+        - "**/*.jsx"
+        - "**/*.ts"
+        - "**/*.tsx"
+        - "**/*.json"
+        - "**/*.jsonc"
+        - "**/*.css"
       stage_fixed: true
-      env:
-        PATH: "$HOME/.bun/bin:$PATH"
