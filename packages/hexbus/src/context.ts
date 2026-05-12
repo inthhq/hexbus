@@ -58,8 +58,8 @@ function getLogLevel(parsedFlags: ParsedArgs['parsedFlags']): LogLevel {
 			return levelArg as LogLevel;
 		}
 
-		console.warn(
-			`[CLI Setup] Invalid log level '${levelArg}' provided via --logger. Using default 'info'.`
+		process.stderr.write(
+			`[CLI Setup] Invalid log level '${levelArg}' provided via --logger. Using default 'info'.\n`
 		);
 	}
 

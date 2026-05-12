@@ -12,12 +12,20 @@ const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
 	debug: 3,
 };
 
+function safeStringify(arg: unknown): string {
+	try {
+		return JSON.stringify(arg, null, 2);
+	} catch {
+		return String(arg);
+	}
+}
+
 function formatArgs(args: unknown[]): string {
 	if (args.length === 0) {
 		return '';
 	}
 
-	return `\n${args.map((arg) => `  - ${JSON.stringify(arg, null, 2)}`).join('\n')}`;
+	return `\n${args.map((arg) => `  - ${safeStringify(arg)}`).join('\n')}`;
 }
 
 export function formatLogMessage(
@@ -78,9 +86,11 @@ export function formatStep(
 	total: number,
 	label: string
 ): string {
-	const filled = color.green('█'.repeat(current));
-	const empty = color.dim('░'.repeat(total - current));
-	return `[${filled}${empty}] Step ${current}/${total}: ${label}`;
+	const safeTotal = Math.max(0, total);
+	const safeCurrent = Math.min(Math.max(0, current), safeTotal);
+	const filled = color.green('█'.repeat(safeCurrent));
+	const empty = color.dim('░'.repeat(safeTotal - safeCurrent));
+	return `[${filled}${empty}] Step ${safeCurrent}/${safeTotal}: ${label}`;
 }
 
 export function createCliLogger(level: LogLevel = 'info'): CliLogger {

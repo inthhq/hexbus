@@ -3,3 +3,24 @@ dist
 coverage
 .turbo
 .DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs/
+
+# Environment files (keep .env.example checked in)
+.env
+.env.*
+!.env.example
+
+# Local artifacts
+*.local
+.cache/
+.history/
+
+# Editor / IDE
+.vscode/
+.idea/

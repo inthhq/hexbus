@@ -59,8 +59,13 @@ export const globalFlags: CliFlag[] = [
 ];
 
 function getPrimaryFlagName(flag: CliFlag): string {
-	const firstName = flag.names[0] || '';
-	return firstName.replace(/^--?/, '');
+	const longName = flag.names.find((name) => name.startsWith('--'));
+	const fallback = flag.names.reduce(
+		(longest, name) => (name.length > longest.length ? name : longest),
+		''
+	);
+	const chosen = longName ?? fallback;
+	return chosen.replace(/^--?/, '');
 }
 
 export function parseCliArgs(
@@ -131,14 +136,15 @@ export function parseCliArgs(
 		}
 	}
 
-	commandName = potentialCommandArgs.find((arg) =>
-		commands.some((cmd) => cmd.name === arg)
-	);
-
-	for (const arg of potentialCommandArgs) {
-		if (arg !== commandName) {
-			commandArgs.push(arg);
-		}
+	const firstPositional = potentialCommandArgs[0];
+	if (
+		typeof firstPositional === 'string' &&
+		commands.some((cmd) => cmd.name === firstPositional)
+	) {
+		commandName = firstPositional;
+		commandArgs.push(...potentialCommandArgs.slice(1));
+	} else {
+		commandArgs.push(...potentialCommandArgs);
 	}
 
 	return { commandName, commandArgs, parsedFlags };

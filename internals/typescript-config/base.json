@@ -8,7 +8,7 @@
 		"incremental": false,
 		"isolatedModules": true,
 		"strictNullChecks": true,
-		"lib": ["es2022", "DOM"],
+		"lib": ["es2022"],
 		"moduleDetection": "force",
 		"module": "ESNext",
 		"moduleResolution": "Bundler",

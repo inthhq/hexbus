@@ -37,19 +37,24 @@ export async function installSkills(
 ): Promise<void> {
 	const logger: SkillsLogger = options.logger ?? console;
 	const execCommand = getSkillsRunnerCommand(options.packageManager);
-	const [cmd, ...baseArgs] = execCommand.split(' ');
+	const [cmd, ...baseArgs] = execCommand.trim().split(/\s+/).filter(Boolean);
+
+	if (!cmd) {
+		const error = new Error(
+			`Invalid package manager command: ${JSON.stringify(execCommand)}`
+		);
+		logger.error(error.message);
+		options.onFailure?.(error);
+		return;
+	}
 
 	logger.info(`Running: ${execCommand} skills add ${options.skillRef}`);
 
 	try {
-		const child = spawn(
-			cmd!,
-			[...baseArgs, 'skills', 'add', options.skillRef],
-			{
-				cwd: options.cwd ?? process.cwd(),
-				stdio: 'inherit',
-			}
-		);
+		const child = spawn(cmd, [...baseArgs, 'skills', 'add', options.skillRef], {
+			cwd: options.cwd ?? process.cwd(),
+			stdio: 'inherit',
+		});
 
 		const [exitCode] = await once(child, 'exit');
 
@@ -67,14 +72,16 @@ export async function installSkills(
 			`Skills installation failed with exit code ${String(exitCode)}`
 		);
 		logger.error(
-			`${error.message}. Install manually with: npx skills add ${options.skillRef}`
+			`${error.message}. Install manually with: ${execCommand} skills add ${options.skillRef}`
 		);
 		options.onFailure?.(error);
 	} catch (error) {
 		logger.error(
 			`Skills installation failed: ${error instanceof Error ? error.message : String(error)}`
 		);
-		logger.info(`Install manually with: npx skills add ${options.skillRef}`);
+		logger.info(
+			`Install manually with: ${execCommand} skills add ${options.skillRef}`
+		);
 		options.onFailure?.(error);
 	}
 }

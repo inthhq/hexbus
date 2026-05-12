@@ -12,7 +12,7 @@
 		"dev": "bun ./src/index.ts",
 		"fmt": "bun biome format --write . && bun biome check --formatter-enabled=false --linter-enabled=false --write",
 		"lint": "bun biome lint ./src",
-		"test": "echo '@inth/hexbus-example-minimal-cli has no tests'"
+		"test": "bun ./src/index.ts --help"
 	},
 	"dependencies": {
 		"hexbus": "workspace:*"

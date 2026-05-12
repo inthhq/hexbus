@@ -9,7 +9,7 @@ describe('telemetry', () => {
 		expect(() => telemetry.trackEvent('anything')).not.toThrow();
 	});
 
-	it('can queue and flush events without an endpoint', () => {
+	it('can queue and flush events without an endpoint', async () => {
 		const telemetry = createTelemetry({
 			appName: 'test-cli',
 			defaultProperties: { packageName: 'test' },
@@ -18,6 +18,6 @@ describe('telemetry', () => {
 		telemetry.trackEvent('event');
 		telemetry.trackCommand('setup', ['arg'], { force: true });
 		expect(telemetry.isDisabled()).toBe(false);
-		expect(() => telemetry.flushSync()).not.toThrow();
+		await expect(telemetry.flush()).resolves.toBeUndefined();
 	});
 });

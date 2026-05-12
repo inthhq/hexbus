@@ -66,7 +66,7 @@ export interface CliLogger {
 }
 
 export interface ErrorHandlers {
-	handleError(error: unknown, message: string): never;
+	handleError(error: unknown, command: string): never;
 	handleCancel(
 		message?: string,
 		context?: { command?: string; stage?: string }
@@ -95,7 +95,7 @@ export interface Telemetry {
 		flags?: Record<string, string | number | boolean | undefined>
 	): void;
 	trackError(error: Error, command?: string): void;
-	flushSync(): void;
+	flush(): Promise<void>;
 	shutdown(): Promise<void>;
 	isDisabled(): boolean;
 }

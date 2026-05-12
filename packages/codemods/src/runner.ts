@@ -96,7 +96,17 @@ export async function runCodemods<TContext extends CliContext>(
 	};
 
 	for (const codemod of selectedCodemods) {
-		const result = await codemod.run(context, runOptions);
+		let result: CodemodRunResult;
+		try {
+			result = await codemod.run(context, runOptions);
+		} catch (error) {
+			const message =
+				error instanceof Error ? error.stack || error.message : String(error);
+			result = {
+				changedFiles: [],
+				errors: [`${codemod.label}: ${message}`],
+			};
+		}
 		logCodemodResult(context, codemod.label, result, options.dryRun);
 		combined.changedFiles.push(...result.changedFiles);
 		combined.errors.push(...result.errors);

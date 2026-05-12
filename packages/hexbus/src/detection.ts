@@ -226,7 +226,11 @@ export async function detectPackageManager(
 	}
 
 	if (!pm) {
-		if (options?.interactive !== false) {
+		if (
+			options?.interactive === true &&
+			process.stdin.isTTY &&
+			!process.env.CI
+		) {
 			pm = await promptForPackageManager(logger);
 		} else {
 			pm = 'npm';
