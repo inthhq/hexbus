@@ -4,16 +4,17 @@
 	"type": "module",
 	"exports": {
 		"./base": {
-			"types": "./src/base-config.ts",
-			"import": "./src/base-config.ts"
+			"types": "./dist/base-config.d.mts",
+			"import": "./dist/base-config.mjs"
 		},
 		"./ui": {
-			"types": "./src/ui-config.ts",
-			"import": "./src/ui-config.ts"
+			"types": "./dist/ui-config.d.mts",
+			"import": "./dist/ui-config.mjs"
 		}
 	},
 	"private": true,
 	"scripts": {
+		"build": "bun --bun tsdown",
 		"check-types": "tsc --noEmit",
 		"dev": "echo '@inth/vitest-config has no watch task'",
 		"lint": "bun biome lint ./src",

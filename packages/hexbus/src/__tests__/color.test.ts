@@ -40,6 +40,17 @@ describe('detectColorSupport', () => {
 		).toBe(true);
 	});
 
+	it('disables forced color when FORCE_COLOR is zero', () => {
+		expect(
+			detectColorSupport({
+				argv: [],
+				env: { FORCE_COLOR: '0' },
+				platform: 'linux',
+				stdout: { isTTY: true },
+			})
+		).toBe(false);
+	});
+
 	it('does not force color only because ci is set', () => {
 		expect(
 			detectColorSupport({

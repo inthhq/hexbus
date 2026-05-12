@@ -88,13 +88,23 @@ export function detectColorSupport(options: ColorSupportOptions = {}): boolean {
 	const env = options.env ?? process.env;
 	const platform = options.platform ?? process.platform;
 	const stdout = options.stdout ?? process.stdout;
-	const isDisabled = Boolean(env.NO_COLOR) || argv.includes('--no-color');
+	const isForceColorDisabled =
+		env.FORCE_COLOR === '0' || env.FORCE_COLOR?.toLowerCase() === 'false';
+	const isDisabled =
+		Boolean(env.NO_COLOR) ||
+		argv.includes('--no-color') ||
+		isForceColorDisabled;
 
 	if (isDisabled) {
 		return false;
 	}
 
-	if (Boolean(env.FORCE_COLOR) || argv.includes('--color')) {
+	if (
+		(env.FORCE_COLOR !== undefined &&
+			env.FORCE_COLOR !== '0' &&
+			env.FORCE_COLOR.toLowerCase() !== 'false') ||
+		argv.includes('--color')
+	) {
 		return true;
 	}
 
