@@ -23,7 +23,7 @@
     "fmt": "turbo run fmt",
     "postinstall": "lefthook install",
     "lint": "turbo run lint",
-    "lint:fix": "turbo run lint -- --write",
+    "lint:fix": "turbo run lint -- --fix",
     "prepare": "lefthook install",
     "release": "changeset publish",
     "test": "turbo run test",
@@ -40,7 +40,7 @@
     "tsdown": "0.22.0",
     "turbo": "2.9.6",
     "typescript": "6.0.2",
-    "ultracite": "7.7.0",
+    "ultracite": "^7.7.0",
     "vitest": "4.1.2"
   },
   "engines": {
