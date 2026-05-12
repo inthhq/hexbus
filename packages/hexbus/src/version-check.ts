@@ -1,7 +1,7 @@
-import fsSync from 'node:fs';
-import fs from 'node:fs/promises';
-import os from 'node:os';
-import path from 'node:path';
+import * as fsSync from 'node:fs';
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { color } from './logger';
 import type { CliLogger } from './types';
 

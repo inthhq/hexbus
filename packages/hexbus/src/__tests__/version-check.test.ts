@@ -14,6 +14,7 @@ import {
 } from '../version-check';
 
 const originalEnv = { ...process.env };
+const originalFetch = globalThis.fetch;
 const tempDirs: string[] = [];
 
 function createTempDir(): string {
@@ -52,11 +53,14 @@ function createFetchMock(version: string) {
 
 beforeEach(() => {
 	process.env = { ...originalEnv };
+	delete process.env.BUN_INSTALL;
+	delete process.env.npm_command;
+	delete process.env.npm_config_prefix;
 });
 
 afterEach(async () => {
 	vi.restoreAllMocks();
-	vi.unstubAllGlobals();
+	globalThis.fetch = originalFetch;
 	process.env = { ...originalEnv };
 	await Promise.all(
 		tempDirs
@@ -113,7 +117,7 @@ describe('checkForUpdate', () => {
 	it('fetches and writes cache when cache is missing', async () => {
 		const cacheDir = createTempDir();
 		const fetchMock = createFetchMock('1.2.0');
-		vi.stubGlobal('fetch', fetchMock);
+		globalThis.fetch = fetchMock as unknown as typeof fetch;
 
 		const result = await checkForUpdate({
 			packageName: 'minimal-cli',
@@ -140,7 +144,7 @@ describe('checkForUpdate', () => {
 		const cacheDir = createTempDir();
 		writeCache(cacheDir, 'minimal-cli', '1.10.0', 0);
 		const fetchMock = createFetchMock('2.0.0');
-		vi.stubGlobal('fetch', fetchMock);
+		globalThis.fetch = fetchMock as unknown as typeof fetch;
 
 		const result = await checkForUpdate({
 			packageName: 'minimal-cli',
@@ -158,12 +162,9 @@ describe('checkForUpdate', () => {
 
 	it('returns a null latest version on fetch failure', async () => {
 		const cacheDir = createTempDir();
-		vi.stubGlobal(
-			'fetch',
-			vi.fn(async () => {
-				throw new Error('network down');
-			})
-		);
+		globalThis.fetch = vi.fn(async () => {
+			throw new Error('network down');
+		}) as unknown as typeof fetch;
 
 		const result = await checkForUpdate({
 			packageName: 'minimal-cli',
@@ -221,7 +222,7 @@ describe('startBackgroundUpdateCheck', () => {
 		const cacheDir = createTempDir();
 		writeCache(cacheDir, 'minimal-cli', '1.2.0', 0);
 		const fetchMock = createFetchMock('1.3.0');
-		vi.stubGlobal('fetch', fetchMock);
+		globalThis.fetch = fetchMock as unknown as typeof fetch;
 		const calls: string[] = [];
 
 		startBackgroundUpdateCheck({
