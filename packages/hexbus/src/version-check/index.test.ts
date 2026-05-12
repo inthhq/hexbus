@@ -11,7 +11,7 @@ import {
 	isVersionRequest,
 	printVersionInfo,
 	startBackgroundUpdateCheck,
-} from '../version-check';
+} from './index';
 
 const originalEnv = { ...process.env };
 const originalFetch = globalThis.fetch;
