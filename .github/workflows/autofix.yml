@@ -17,6 +17,11 @@ jobs:
       - name: ⬇️ Check out code
         uses: actions/checkout@v4
 
+      - name: 🟩 Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.18.0
+
       # Setup Bun
       - name: 🟢 Setup Bun
         uses: oven-sh/setup-bun@v1

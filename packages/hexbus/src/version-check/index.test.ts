@@ -43,7 +43,9 @@ async function waitForCacheVersion(
   }
   expect(
     JSON.parse(fsSync.readFileSync(cachePath, "utf-8")) as { version: string }
-  ).toMatchObject({ version });
+  ).toMatchObject({
+    version,
+  });
 }
 
 function createTempDir(): string {
