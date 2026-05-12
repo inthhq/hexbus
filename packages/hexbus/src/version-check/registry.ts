@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import * as fsSync from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
@@ -110,7 +110,7 @@ async function writeCachedVersion(
 ): Promise<void> {
 	const cachePath = getCachePath(options);
 	const cacheDir = path.dirname(cachePath);
-	const tempPath = `${cachePath}.${process.pid}.tmp`;
+	const tempPath = `${cachePath}.${process.pid}.${randomUUID()}.tmp`;
 	const payload: CachedVersion = {
 		version,
 		fetchedAt: options.now?.() ?? Date.now(),

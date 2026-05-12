@@ -54,6 +54,15 @@ export function detectInstallSource(
 	const rawPath = binPath || '';
 	const resolvedPath = normalizePath(safeRealpath(rawPath));
 	const npmPrefix = envValue('npm_config_prefix');
+	const execPath = normalizePath(process.execPath);
+	const argvPath = normalizePath(process.argv[0] ?? '');
+	const execName = path.basename(execPath);
+	const argvName = path.basename(argvPath);
+	const isBunInvocation =
+		execName === 'bun' ||
+		execName === 'bunx' ||
+		argvName === 'bun' ||
+		argvName === 'bunx';
 
 	if (
 		resolvedPath.includes('/opt/homebrew/') ||
@@ -74,7 +83,8 @@ export function detectInstallSource(
 
 	if (
 		resolvedPath.includes('/.bun/install/cache/') ||
-		Boolean(envValue('BUN_INSTALL'))
+		(Boolean(envValue('BUN_INSTALL')) &&
+			(resolvedPath.includes('/.bun/install/run/') || isBunInvocation))
 	) {
 		return 'bunx';
 	}

@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { compareVersions } from './compare';
 import {
 	checkForUpdate,
 	detectInstallSource,
@@ -15,7 +16,31 @@ import {
 
 const originalEnv = { ...process.env };
 const originalFetch = globalThis.fetch;
+const originalArgv = [...process.argv];
+const originalExecPath = process.execPath;
 const tempDirs: string[] = [];
+
+async function waitForCacheVersion(
+	cachePath: string,
+	version: string
+): Promise<void> {
+	for (let attempt = 0; attempt < 20; attempt++) {
+		try {
+			const cache = JSON.parse(fsSync.readFileSync(cachePath, 'utf-8')) as {
+				version: string;
+			};
+			if (cache.version === version) {
+				return;
+			}
+		} catch {
+			// The background refresh may not have written the cache yet.
+		}
+		await new Promise((resolve) => setTimeout(resolve, 5));
+	}
+	expect(
+		JSON.parse(fsSync.readFileSync(cachePath, 'utf-8')) as { version: string }
+	).toMatchObject({ version });
+}
 
 function createTempDir(): string {
 	const tempDir = fsSync.mkdtempSync(
@@ -62,6 +87,11 @@ afterEach(async () => {
 	vi.restoreAllMocks();
 	globalThis.fetch = originalFetch;
 	process.env = { ...originalEnv };
+	process.argv = [...originalArgv];
+	Object.defineProperty(process, 'execPath', {
+		configurable: true,
+		value: originalExecPath,
+	});
 	await Promise.all(
 		tempDirs
 			.splice(0)
@@ -95,6 +125,39 @@ describe('detectInstallSource', () => {
 		['/unknown/minimal-cli', 'unknown'],
 	] as const)('detects %s as %s', (binPath, expected) => {
 		expect(detectInstallSource(binPath)).toBe(expected);
+	});
+
+	it('does not treat BUN_INSTALL alone as bunx evidence', () => {
+		process.env.BUN_INSTALL = '/Users/me/.bun';
+		process.argv[0] = '/usr/local/bin/node';
+		Object.defineProperty(process, 'execPath', {
+			configurable: true,
+			value: '/usr/local/bin/node',
+		});
+
+		expect(detectInstallSource('/usr/local/bin/minimal-cli')).toBe('unknown');
+	});
+
+	it('detects bunx when BUN_INSTALL has Bun execution evidence', () => {
+		process.env.BUN_INSTALL = '/Users/me/.bun';
+		process.argv[0] = '/Users/me/.bun/bin/bun';
+
+		expect(detectInstallSource('/Users/me/.bun/install/run/minimal-cli')).toBe(
+			'bunx'
+		);
+	});
+});
+
+describe('compareVersions', () => {
+	it('orders prerelease versions below their matching release', () => {
+		expect(compareVersions('1.0.0-beta.1', '1.0.0')).toBeLessThan(0);
+		expect(compareVersions('1.0.0', '1.0.0-beta.1')).toBeGreaterThan(0);
+	});
+
+	it('compares prerelease identifiers by semver precedence', () => {
+		expect(compareVersions('1.0.0-alpha.2', '1.0.0-alpha.10')).toBeLessThan(0);
+		expect(compareVersions('1.0.0-beta.1', '1.0.0-beta.alpha')).toBeLessThan(0);
+		expect(compareVersions('1.0.0-beta.2', '1.0.0-beta.1')).toBeGreaterThan(0);
 	});
 });
 
@@ -194,23 +257,25 @@ describe('checkForUpdate', () => {
 		expect(entries[0]).not.toMatch(/^con(?:\.|$)/i);
 	});
 
-	it('cleans up temp cache files when atomic writes fail', async () => {
+	it('returns a graceful result and cleans temp cache files when atomic writes fail', async () => {
 		const cacheDir = createTempDir();
 		const fetchMock = createFetchMock('1.2.0');
-		const cachePath = path.join(cacheDir, 'minimal-cli.json');
-		fsSync.mkdirSync(cachePath);
+		fsSync.mkdirSync(path.join(cacheDir, 'minimal-cli.json'));
 		globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-		await expect(
-			checkForUpdate({
-				packageName: 'minimal-cli',
-				currentVersion: '1.0.0',
-				cacheDir,
-			})
-		).rejects.toThrow();
+		const result = await checkForUpdate({
+			packageName: 'minimal-cli',
+			currentVersion: '1.0.0',
+			cacheDir,
+		});
 
-		const tempPath = `${cachePath}.${process.pid}.tmp`;
-		expect(fsSync.existsSync(tempPath)).toBe(false);
+		expect(result.latestVersion).toBeNull();
+		expect(result.isOutdated).toBe(false);
+		expect(
+			fsSync
+				.readdirSync(cacheDir)
+				.filter((entry) => entry.startsWith('minimal-cli.json.'))
+		).toEqual([]);
 	});
 });
 
@@ -279,11 +344,6 @@ describe('startBackgroundUpdateCheck', () => {
 		expect(calls[0]).toContain('Update available');
 		expect(fetchMock).toHaveBeenCalledOnce();
 
-		await vi.waitFor(() => {
-			const cache = JSON.parse(
-				fsSync.readFileSync(path.join(cacheDir, 'minimal-cli.json'), 'utf-8')
-			) as { version: string };
-			expect(cache.version).toBe('1.3.0');
-		});
+		await waitForCacheVersion(path.join(cacheDir, 'minimal-cli.json'), '1.3.0');
 	});
 });
