@@ -20,6 +20,7 @@ import {
 } from "./telemetry";
 import type {
   CliCommand,
+  CliFlag,
   CliContext,
   ErrorHandlers,
   FileSystemUtils,
@@ -55,6 +56,14 @@ export interface CreateContextOptions<TPackage extends string = string> {
    * Top-level commands used to identify `commandName` during argument parsing.
    */
   commands: CliCommand[];
+  /**
+   * Global flags parsed before command execution.
+   *
+   * @remarks
+   * Pass this when a product CLI needs extra global flags while keeping Hexbus'
+   * parser and context bootstrap.
+   */
+  globalFlags?: CliFlag[];
   /**
    * Application name used for config lookup, telemetry defaults, and logger
    * metadata.
@@ -240,7 +249,8 @@ export async function createCliContext<TPackage extends string = string>(
   const appName = options.appName ?? "cli";
   const { commandName, commandArgs, parsedFlags } = parseCliArgs(
     options.rawArgs,
-    options.commands
+    options.commands,
+    options.globalFlags
   );
 
   const logger = createCliLogger(getLogLevel(parsedFlags));

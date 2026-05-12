@@ -112,15 +112,16 @@ function getPrimaryFlagName(flag: CliFlag): string {
  */
 export function parseCliArgs(
   rawArgs: string[],
-  commands: CliCommand[]
+  commands: CliCommand[],
+  flags: CliFlag[] = globalFlags
 ): ParsedArgs {
   const parsedFlags: Record<string, string | boolean | undefined> = {};
   const potentialCommandArgs: string[] = [];
   let commandName: string | undefined;
   const commandArgs: string[] = [];
-  const knownFlagSet = new Set(globalFlags.flatMap((flag) => flag.names));
+  const knownFlagSet = new Set(flags.flatMap((flag) => flag.names));
 
-  for (const flag of globalFlags) {
+  for (const flag of flags) {
     const primaryName = getPrimaryFlagName(flag);
     if (!primaryName) {
       continue;
@@ -141,7 +142,7 @@ export function parseCliArgs(
 
     let isFlag = false;
 
-    for (const flag of globalFlags) {
+    for (const flag of flags) {
       if (!flag.names.includes(arg)) {
         continue;
       }
@@ -210,8 +211,8 @@ export function formatFlagHelp(flag: CliFlag): string {
  *
  * @returns Newline-delimited help rows for `globalFlags`.
  */
-export function generateFlagsHelp(): string {
-  return globalFlags.map(formatFlagHelp).join("\n");
+export function generateFlagsHelp(flags: CliFlag[] = globalFlags): string {
+  return flags.map(formatFlagHelp).join("\n");
 }
 
 /**
