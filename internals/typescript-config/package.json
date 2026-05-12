@@ -1,0 +1,14 @@
+{
+	"name": "@inth/typescript-config",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "echo '@inth/typescript-config has no watch task'",
+		"fmt": "bun biome format --write . && bun biome check --formatter-enabled=false --linter-enabled=false --write",
+		"lint": "bun biome lint ."
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

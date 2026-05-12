@@ -1,0 +1,13 @@
+{
+	"$schema": "https://unpkg.com/@changesets/config@latest/schema.json",
+	"changelog": "@changesets/cli/changelog",
+	"commit": false,
+	"linked": [["hexbus", "@inth/hexbus-codemods", "@inth/hexbus-skills"]],
+	"privatePackages": false,
+	"access": "public",
+	"baseBranch": "main",
+	"updateInternalDependencies": "patch",
+	"snapshot": {
+		"useCalculatedVersion": true
+	}
+}

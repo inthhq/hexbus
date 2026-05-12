@@ -1,0 +1,38 @@
+{
+	"$schema": "https://turborepo.dev/schema.v2.json",
+	"concurrency": "20",
+	"ui": "tui",
+	"tasks": {
+		"build": {
+			"dependsOn": ["^build"],
+			"outputs": ["dist/**"]
+		},
+		"fmt": {
+			"inputs": ["$TURBO_DEFAULT$", "**/biome.jsonc", "**/biome.json"],
+			"outputs": []
+		},
+		"lint": {
+			"dependsOn": ["transit"],
+			"inputs": ["$TURBO_DEFAULT$", "**/biome.jsonc", "**/biome.json"]
+		},
+		"check-types": {
+			"dependsOn": ["build", "^build"]
+		},
+		"test": {
+			"dependsOn": ["build", "^build", "transit", "@inth/vitest-config#build"],
+			"outputs": [
+				"coverage/coverage-summary.json",
+				"coverage/coverage-final.json",
+				"coverage/html/**"
+			]
+		},
+		"dev": {
+			"cache": false,
+			"persistent": true,
+			"interruptible": true
+		},
+		"transit": {
+			"dependsOn": ["^transit"]
+		}
+	}
+}
