@@ -104,7 +104,7 @@ export async function runCodemods<TContext extends CliContext>(
 				error instanceof Error ? error.stack || error.message : String(error);
 			result = {
 				changedFiles: [],
-				errors: [`${codemod.label}: ${message}`],
+				errors: [message],
 			};
 		}
 		logCodemodResult(context, codemod.label, result, options.dryRun);

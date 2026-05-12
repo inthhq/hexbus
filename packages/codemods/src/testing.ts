@@ -62,18 +62,20 @@ export async function runAndAssert<T>(
 	fixture: FixtureTree,
 	run: (projectRoot: string) => Promise<T>,
 	options: { keep?: boolean } = {}
-): Promise<{ projectRoot: string; result: T }> {
+): Promise<{ projectRoot?: string; result: T }> {
 	const { keep = false } = options;
 	const projectRoot = await fs.mkdtemp(
 		path.join(os.tmpdir(), 'hexbus-codemod-')
 	);
+	let result: T;
 	try {
 		await writeFixtureTree(projectRoot, fixture);
-		const result = await run(projectRoot);
-		return { projectRoot, result };
+		result = await run(projectRoot);
 	} finally {
 		if (!keep) {
 			await fs.rm(projectRoot, { recursive: true, force: true });
 		}
 	}
+
+	return keep ? { projectRoot, result } : { result };
 }

@@ -119,7 +119,12 @@ export function createErrorHandlers(
 		handleError(error: unknown, command: string): never {
 			const cliError = CliError.from(error);
 
-			telemetry?.trackError(cliError, command);
+			try {
+				telemetry?.trackError(cliError, command);
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				logger.warn(`Failed to track error telemetry: ${message}`);
+			}
 			cliError.display(logger);
 			process.exit(1);
 		},

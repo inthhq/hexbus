@@ -116,8 +116,8 @@ export async function createCliContext<TPackage extends string = string>(
 	);
 
 	const logger = createCliLogger(getLogLevel(parsedFlags));
-	const fsUtils = createFileSystem(cwd);
 	const projectRoot = await detectProjectRoot(cwd, logger);
+	const fsUtils = createFileSystem(projectRoot);
 	const framework = await detectFramework(
 		projectRoot,
 		logger,

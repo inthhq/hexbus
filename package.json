@@ -22,7 +22,7 @@
 		"lint": "turbo run lint",
 		"lint:fix": "turbo run lint -- --write",
 		"postinstall": "lefthook install",
-		"release": "turbo run build && changeset publish",
+		"release": "changeset publish",
 		"test": "turbo run test",
 		"version": "changeset version && bun install"
 	},
