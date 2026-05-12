@@ -14,7 +14,7 @@
 	},
 	"private": true,
 	"scripts": {
-		"build": "tsdown",
+		"build": "bun --bun tsdown",
 		"check-types": "tsc --noEmit",
 		"dev": "echo '@inth/vitest-config has no watch task'",
 		"lint": "bun biome lint ./src",

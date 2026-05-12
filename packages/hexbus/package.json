@@ -23,7 +23,7 @@
 		"dist"
 	],
 	"scripts": {
-		"build": "tsdown",
+		"build": "bun --bun tsdown",
 		"check-types": "tsc --noEmit",
 		"dev": "tsdown --watch",
 		"fmt": "bun biome format --write . && bun biome check --formatter-enabled=false --linter-enabled=false --write",
