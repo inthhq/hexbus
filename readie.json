@@ -1,0 +1,72 @@
+{
+  "$schema": "https://unpkg.com/readie/schemas/readie.schema.json",
+  "version": "1",
+  "output": "README.md",
+  "title": "Hexbus",
+  "description": "Opinionated CLI framework packages for Inth apps. The monorepo keeps Inth app CLIs focused on app behavior while sharing the command-line framework, codemod runner, and agent skill installer glue.",
+  "includeTableOfContents": true,
+  "features": [
+    "`hexbus` provides typed CLI context, argument parsing, logging, prompts, help output, error handling, telemetry hooks, project detection, and update hints.",
+    "`@inth/hexbus-codemods` provides a reusable `ts-morph` codemod harness with dry-run support, version gating, and fixture helpers.",
+    "`@inth/hexbus-skills` wraps the external `skills` CLI so Inth app CLIs can install agent skill bundles through the caller's package manager.",
+    "Bun-first workspace scripts delegate through Turbo while package-specific tasks live in each package.",
+    "Packages stay product-agnostic so downstream CLIs can compose shared mechanics without inheriting product copy or dependencies."
+  ],
+  "prerequisites": [
+    "Node.js 18.17.0 or later",
+    "Bun 1.3.11 or later",
+    "Git, for Changesets and workspace development"
+  ],
+  "quickStart": "Install dependencies, then run the normal verification tasks from the workspace root:\n\n```bash\nbun install\nbun run build\nbun run test\nbun run check-types\n```\n\nTry the minimal example CLI when you want to see the `hexbus` chassis in motion:\n\n```bash\nbun --cwd examples/minimal-cli run dev --help\n```",
+  "installation": ["```bash\nbun install\n```"],
+  "usage": [
+    "Use the root scripts for workspace-wide checks. They delegate to Turbo and run the matching package scripts.",
+    "```bash\nbun run build\nbun run lint\nbun run test\nbun run check-types\n```",
+    "Work inside a package when you need package-specific development commands.",
+    "```bash\nbun --cwd packages/hexbus run dev\nbun --cwd packages/codemods run test\nbun --cwd packages/skills run lint\n```",
+    "Publishable changes should include a Changeset before release.",
+    "```bash\nbun run changeset\n```"
+  ],
+  "commands": [
+    {
+      "name": "bun run build",
+      "description": "Build every workspace package through Turbo."
+    },
+    {
+      "name": "bun run test",
+      "description": "Run package test suites through Turbo."
+    },
+    {
+      "name": "bun run check-types",
+      "description": "Run TypeScript type checks across the workspace."
+    },
+    {
+      "name": "bun run lint",
+      "description": "Run package lint tasks."
+    },
+    {
+      "name": "bun run fmt",
+      "description": "Format and fix supported files with each package's formatter task."
+    },
+    {
+      "name": "bun run changeset",
+      "description": "Create a release note for publishable package changes."
+    }
+  ],
+  "customSections": {
+    "Packages": "- [`hexbus`](packages/hexbus): opinionated CLI framework primitives for Inth apps.\n- [`@inth/hexbus-codemods`](packages/codemods): reusable codemod runner and test utilities.\n- [`@inth/hexbus-skills`](packages/skills): small skill installer helper for invoking `skills add`.",
+    "Example": "The `examples/minimal-cli` package demonstrates a tiny CLI built on top of `hexbus`.\n\n```bash\nbun --cwd examples/minimal-cli run dev --help\n```",
+    "Release Workflow": "This repo uses Changesets for package versions and release notes.\n\n```bash\nbun run changeset\nbun run version\nbun run release\n```\n\nRun verification before publishing:\n\n```bash\nbun run build\nbun run test\nbun run check-types\n```",
+    "Design Goals": "- Keep Inth app CLIs responsible for app-specific commands, constants, auth, control-plane calls, and transforms.\n- Keep shared Hexbus packages free of app-specific imports and copy.\n- Prefer small explicit APIs over broad abstractions.\n- Make package behavior easy to test in isolation."
+  },
+  "contributing": [
+    "Use Bun for installs, scripts, tests, and one-off TypeScript execution.",
+    "Keep root scripts as `turbo run` delegators.",
+    "Put package-specific task logic in each package's `package.json`.",
+    "Add or update tests for behavior changes."
+  ],
+  "license": {
+    "name": "Apache-2.0",
+    "url": "LICENSE"
+  }
+}

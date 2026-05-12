@@ -1,0 +1,47 @@
+{
+  "$schema": "https://unpkg.com/readie/schemas/readie.schema.json",
+  "version": "1",
+  "output": "README.md",
+  "title": "@inth/hexbus-skills",
+  "description": "Small helper package for installing agent skills from Hexbus-powered Inth app CLIs. It delegates to the external `skills` CLI through the caller's package manager and gives Inth app CLIs consistent logging, success callbacks, failure callbacks, and manual fallback instructions.",
+  "includeTableOfContents": true,
+  "features": [
+    "Resolve one-off runner commands for Bun, npm, pnpm, and Yarn.",
+    "Spawn `skills add <ref>` with inherited stdio so users can interact with the installer directly.",
+    "Log the exact install command before execution.",
+    "Report successful installs through either `logger.success` or `logger.info`.",
+    "Handle non-zero exits and spawn failures without throwing, then route failures to an optional callback.",
+    "Keep skill content out of the package; consumers provide the skill reference to install."
+  ],
+  "prerequisites": [
+    "Node.js 18.17.0 or later",
+    "A CLI that wants to install an agent skill bundle",
+    "Network/package-manager access to run the external `skills` CLI"
+  ],
+  "installation": [
+    "```bash\nbun add @inth/hexbus-skills\n```",
+    "```bash\nnpm install @inth/hexbus-skills\n```",
+    "```bash\npnpm add @inth/hexbus-skills\n```"
+  ],
+  "quickStart": "Call `installSkills` from your Inth app CLI command and pass the package manager detected by your CLI context:\n\n```ts\nimport { installSkills } from '@inth/hexbus-skills';\n\nawait installSkills({\n\tskillRef: 'my-org/app-skills',\n\tpackageManager: context.packageManager.name,\n\tcwd: context.projectRoot,\n\tlogger: context.logger,\n\tonSuccess: () => context.telemetry.trackEvent('skills_installed'),\n\tonFailure: (error) => context.telemetry.trackError(error instanceof Error ? error : new Error(String(error))),\n});\n```",
+  "usage": [
+    "Use `getSkillsRunnerCommand` when you only need to show or compose the package-manager-specific runner command.",
+    "Use `installSkills` when your CLI should execute `skills add <skillRef>` for the user.",
+    "Pass `cwd` when the install should run from the detected project root rather than the current process directory.",
+    "Pass the Inth app CLI logger so success, failure, and fallback messages match the rest of your CLI output.",
+    "Use `onSuccess` and `onFailure` to connect installation results to telemetry or follow-up guidance."
+  ],
+  "customSections": {
+    "Runner Commands": "- `bun` -> `bunx`\n- `pnpm` -> `pnpm dlx`\n- `yarn` -> `yarn dlx`\n- `npm` and unknown package managers -> `npx`",
+    "Failure Behavior": "`installSkills` does not throw when the external installer exits unsuccessfully or cannot start. It logs the failure, prints a manual install command, invokes `onFailure` when provided, and returns. This keeps Inth app CLIs in control of whether a failed skill install should block the rest of the command.",
+    "Skill Ownership": "This package intentionally does not bundle skill content. Inth app CLIs own the skill reference, release cadence, and any app-specific messaging around what those skills do."
+  },
+  "support": [
+    "Open an issue in the Hexbus repository for installer wrapper bugs.",
+    "Report problems with a specific skill bundle to the repository that owns that skill reference."
+  ],
+  "license": {
+    "name": "Apache-2.0",
+    "url": "../../LICENSE"
+  }
+}

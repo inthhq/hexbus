@@ -1,7 +1,7 @@
 {
   "name": "hexbus-monorepo",
   "private": true,
-  "description": "Opinionated CLI toolkit packages for Hexbus projects.",
+  "description": "Opinionated CLI framework packages for Inth apps.",
   "homepage": "https://github.com/inthhq/hexbus",
   "license": "Apache-2.0",
   "repository": {
@@ -24,6 +24,7 @@
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint -- --fix",
     "prepare": "lefthook install",
+    "readie": "readie && readie generate:workspace --root ./packages",
     "release": "changeset publish",
     "test": "turbo run test",
     "version": "changeset version && bun install"
@@ -36,6 +37,7 @@
     "lefthook": "^2.1.6",
     "oxfmt": "^0.49.0",
     "oxlint": "^1.64.0",
+    "readie": "^1.0.0",
     "sort-package-json": "3.6.1",
     "tsdown": "0.22.0",
     "turbo": "2.9.6",

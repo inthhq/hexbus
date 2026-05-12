@@ -1,0 +1,85 @@
+{
+  "$schema": "https://unpkg.com/readie/schemas/readie.schema.json",
+  "version": "1",
+  "output": "README.md",
+  "title": "hexbus",
+  "description": "Opinionated CLI framework for Inth apps. `hexbus` gives Inth app CLIs a small, typed foundation for parsing flags, creating execution context, rendering help, reporting errors, logging progress, detecting projects, and showing update hints.",
+  "includeTableOfContents": true,
+  "features": [
+    "Typed `CliContext` creation with command metadata, parsed flags, project root, package manager detection, framework detection, file-system helpers, config loading, telemetry, and confirmation prompts.",
+    "Shared argument parser and global flags for help, version, logging, color, config, confirmation, telemetry, and force behavior.",
+    "Consistent logger, spinner, intro, help, and error rendering built on top of `@clack/prompts`.",
+    "Configurable error catalog and best-effort telemetry hooks that Inth app CLIs can extend or disable.",
+    "Project, framework, package manager, install source, and registry update helpers for better CLI guidance.",
+    "Test helpers for creating lightweight contexts without standing up a full CLI invocation."
+  ],
+  "prerequisites": [
+    "Node.js 18.17.0 or later",
+    "A TypeScript ESM project",
+    "Bun, npm, pnpm, or yarn in the consuming project"
+  ],
+  "installation": [
+    "```bash\nbun add hexbus\n```",
+    "```bash\nnpm install hexbus\n```",
+    "```bash\npnpm add hexbus\n```"
+  ],
+  "quickStart": "Define command metadata, create a context from `process.argv`, then route to the selected command:\n\n```ts\nimport {\n\tcreateCliContext,\n\tshowHelpMenu,\n\tglobalFlags,\n\ttype CliCommand,\n} from 'hexbus';\n\nconst commands: CliCommand[] = [\n\t{\n\t\tname: 'init',\n\t\tlabel: 'Initialize',\n\t\thint: 'Create project files',\n\t\tdescription: 'Initialize project files.',\n\t\tasync action(context) {\n\t\t\tcontext.logger.info(`Project root: ${context.projectRoot}`);\n\t\t},\n\t},\n];\n\nconst context = await createCliContext({\n\trawArgs: process.argv.slice(2),\n\tcommands,\n\tappName: 'my-cli',\n});\n\nif (context.flags.help) {\n\tshowHelpMenu(context, { appName: 'my-cli', version: '0.1.0' }, commands, globalFlags);\n\tprocess.exit(0);\n}\n\nconst command = commands.find((item) => item.name === context.commandName) ?? commands[0];\nawait command.action(context);\n```",
+  "usage": [
+    "Use `parseCliArgs` when you only need normalized command names, command args, and global flags.",
+    "Use `createCliContext` when command execution needs the full runtime context.",
+    "Use `CliError`, `extendErrorCatalog`, and `withErrorHandling` to keep app-specific failures consistent with shared CLI output.",
+    "Use `displayIntro`, `showHelpMenu`, `createSpinner`, and `createCliLogger` for consistent terminal UX.",
+    "Use `isVersionRequest`, `printVersionInfo`, and `startBackgroundUpdateCheck` for fast `-v` / `--version` handling and install-source-aware update hints."
+  ],
+  "globalFlags": [
+    {
+      "flag": "--help, -h",
+      "description": "Show the CLI help menu."
+    },
+    {
+      "flag": "--version, -v",
+      "description": "Show the CLI version."
+    },
+    {
+      "flag": "--logger <level>",
+      "description": "Set log level to `error`, `warn`, `info`, or `debug`."
+    },
+    {
+      "flag": "--color / --no-color",
+      "description": "Force or disable color output."
+    },
+    {
+      "flag": "--config <path>",
+      "description": "Specify a configuration file path."
+    },
+    {
+      "flag": "-y, --yes",
+      "description": "Skip confirmation prompts."
+    },
+    {
+      "flag": "--no-telemetry",
+      "description": "Disable telemetry data collection."
+    },
+    {
+      "flag": "--telemetry-debug",
+      "description": "Log telemetry payloads through the debug channel."
+    },
+    {
+      "flag": "--force",
+      "description": "Force an operation even if files exist."
+    }
+  ],
+  "customSections": {
+    "Core Exports": "- Context: `createCliContext`, `createTestContext`, `CreateContextOptions`\n- Parser: `parseCliArgs`, `parseSubcommand`, `hasFlag`, `getFlagValue`, `globalFlags`\n- Terminal UX: `createCliLogger`, `createSpinner`, `withSpinner`, `displayIntro`, `showHelpMenu`\n- Errors: `CliError`, `createErrorHandlers`, `extendErrorCatalog`, `withErrorHandling`\n- Detection: `detectProjectRoot`, `detectPackageManager`, `detectFramework`, `getInstallCommand`, `getRunCommand`, `getExecCommand`\n- Telemetry: `createTelemetry`, `createDisabledTelemetry`, `TelemetryEventName`\n- Updates: `isVersionRequest`, `printVersionInfo`, `checkForUpdate`, `startBackgroundUpdateCheck`, `formatUpdateHint`",
+    "Context Shape": "`createCliContext` resolves the common services command actions usually need: logger, parsed flags, command args, project root, framework metadata, package manager commands, config helpers, file-system helpers, telemetry, confirmation prompts, and shared error handlers.\n\nInth app CLIs can extend the generic context type when they attach additional services before invoking command actions.",
+    "Update Checks": "`hexbus` supports fast version requests before full context creation. Use `isVersionRequest` and `printVersionInfo` for `-v` / `--version`, then call `startBackgroundUpdateCheck` during normal command execution to show cached update hints and refresh stale registry data in the background."
+  },
+  "support": [
+    "Open an issue in the Hexbus repository for bugs or API questions.",
+    "See `examples/minimal-cli` for a runnable reference CLI."
+  ],
+  "license": {
+    "name": "Apache-2.0",
+    "url": "../../LICENSE"
+  }
+}

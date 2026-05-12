@@ -1,14 +1,39 @@
 # Hexbus
 
-Opinionated CLI packages for Hexbus projects.
+Opinionated CLI framework packages for Inth apps. The monorepo keeps Inth app CLIs focused on app behavior while sharing the command-line framework, codemod runner, and agent skill installer glue.
 
-This repo contains three packages:
+## Table of Contents
 
-- `hexbus`: context, parser, logger, errors, telemetry, detection, intro, and help primitives.
-- `@inth/hexbus-codemods`: reusable `ts-morph` codemod harness, dry-run support, version applicability helpers, and test utilities.
-- `@inth/hexbus-skills`: tiny wrapper for installing agent skills via the external `skills` CLI.
+- [Key Features](#key-features)
+- [Prerequisites](#prerequisites)
+- [Quick Start](#quick-start)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Available Commands](#available-commands)
+- [Contributing](#contributing)
+- [License](#license)
+- [Packages](#packages)
+- [Example](#example)
+- [Release Workflow](#release-workflow)
+- [Design Goals](#design-goals)
 
-## Development
+## Key Features
+
+- `hexbus` provides typed CLI context, argument parsing, logging, prompts, help output, error handling, telemetry hooks, project detection, and update hints.
+- `@inth/hexbus-codemods` provides a reusable `ts-morph` codemod harness with dry-run support, version gating, and fixture helpers.
+- `@inth/hexbus-skills` wraps the external `skills` CLI so Inth app CLIs can install agent skill bundles through the caller's package manager.
+- Bun-first workspace scripts delegate through Turbo while package-specific tasks live in each package.
+- Packages stay product-agnostic so downstream CLIs can compose shared mechanics without inheriting product copy or dependencies.
+
+## Prerequisites
+
+- Node.js 18.17.0 or later
+- Bun 1.3.11 or later
+- Git, for Changesets and workspace development
+
+## Quick Start
+
+Install dependencies, then run the normal verification tasks from the workspace root:
 
 ```bash
 bun install
@@ -17,29 +42,98 @@ bun run test
 bun run check-types
 ```
 
+Try the minimal example CLI when you want to see the `hexbus` chassis in motion:
+
+```bash
+bun --cwd examples/minimal-cli run dev --help
+```
+
+## Installation
+
+```bash
+bun install
+```
+
+## Usage
+
+1. Use the root scripts for workspace-wide checks. They delegate to Turbo and run the matching package scripts.
+
+```bash
+bun run build
+bun run lint
+bun run test
+bun run check-types
+```
+
+2. Work inside a package when you need package-specific development commands.
+
+```bash
+bun --cwd packages/hexbus run dev
+bun --cwd packages/codemods run test
+bun --cwd packages/skills run lint
+```
+
+3. Publishable changes should include a Changeset before release.
+
+```bash
+bun run changeset
+```
+
+## Available Commands
+
+- `bun run build`: Build every workspace package through Turbo.
+- `bun run test`: Run package test suites through Turbo.
+- `bun run check-types`: Run TypeScript type checks across the workspace.
+- `bun run lint`: Run package lint tasks.
+- `bun run fmt`: Format and fix supported files with each package's formatter task.
+- `bun run changeset`: Create a release note for publishable package changes.
+
+## Contributing
+
+- Use Bun for installs, scripts, tests, and one-off TypeScript execution.
+- Keep root scripts as `turbo run` delegators.
+- Put package-specific task logic in each package's `package.json`.
+- Add or update tests for behavior changes.
+
+## License
+
+[Apache-2.0](LICENSE)
+
+## Packages
+
+- [`hexbus`](packages/hexbus): opinionated CLI framework primitives for Inth apps.
+- [`@inth/hexbus-codemods`](packages/codemods): reusable codemod runner and test utilities.
+- [`@inth/hexbus-skills`](packages/skills): small skill installer helper for invoking `skills add`.
+
 ## Example
 
-See `examples/minimal-cli` for a small CLI built on `hexbus`.
+The `examples/minimal-cli` package demonstrates a tiny CLI built on top of `hexbus`.
 
-## Update Checks
+```bash
+bun --cwd examples/minimal-cli run dev --help
+```
 
-`hexbus` includes helpers for fast `-v` / `--version` handling and
-install-source-aware update hints. Version requests can run before
-`createCliContext`, so they do not need project detection or config loading.
+## Release Workflow
 
-Normal CLI runs can call `startBackgroundUpdateCheck` to show cached update
-hints immediately and refresh stale registry data in the background. The helper
-detects npm global, Homebrew, transient runners such as `npx`, and local
-installs, then recommends the appropriate update command when one is available.
+This repo uses Changesets for package versions and release notes.
 
-## Migrating c15t
+```bash
+bun run changeset
+bun run version
+bun run release
+```
 
-Once these packages are published, `@c15t/cli` can consume them by:
+Run verification before publishing:
 
-1. Adding `hexbus`, `@inth/hexbus-codemods`, and `@inth/hexbus-skills`.
-2. Replacing its local CLI context, parser, logger, telemetry, detection, intro, and help code with imports from `hexbus`.
-3. Keeping c15t-specific commands, constants, auth, control-plane, and transforms in `@c15t/cli`.
-4. Replacing the codemod runner with `@inth/hexbus-codemods`, while passing c15t's transform registry and installed-version detector.
-5. Replacing the skills command with `installSkills({ skillRef: 'c15t/skills', ... })`.
+```bash
+bun run build
+bun run test
+bun run check-types
+```
 
-The goal is for product CLIs to own product behavior and share only the command-line chassis.
+## Design Goals
+
+- Keep Inth app CLIs responsible for app-specific commands, constants, auth, control-plane calls, and transforms.
+- Keep shared Hexbus packages free of app-specific imports and copy.
+- Prefer small explicit APIs over broad abstractions.
+- Make package behavior easy to test in isolation.
