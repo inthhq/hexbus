@@ -37,36 +37,42 @@ Define command metadata, create a context from `process.argv`, then route to the
 
 ```ts
 import {
-	createCliContext,
-	showHelpMenu,
-	globalFlags,
-	type CliCommand,
-} from 'hexbus';
+  createCliContext,
+  showHelpMenu,
+  globalFlags,
+  type CliCommand,
+} from "hexbus";
 
 const commands: CliCommand[] = [
-	{
-		name: 'init',
-		label: 'Initialize',
-		hint: 'Create project files',
-		description: 'Initialize project files.',
-		async action(context) {
-			context.logger.info(`Project root: ${context.projectRoot}`);
-		},
-	},
+  {
+    name: "init",
+    label: "Initialize",
+    hint: "Create project files",
+    description: "Initialize project files.",
+    async action(context) {
+      context.logger.info(`Project root: ${context.projectRoot}`);
+    },
+  },
 ];
 
 const context = await createCliContext({
-	rawArgs: process.argv.slice(2),
-	commands,
-	appName: 'my-cli',
+  rawArgs: process.argv.slice(2),
+  commands,
+  appName: "my-cli",
 });
 
 if (context.flags.help) {
-	showHelpMenu(context, { appName: 'my-cli', version: '0.1.0' }, commands, globalFlags);
-	process.exit(0);
+  showHelpMenu(
+    context,
+    { appName: "my-cli", version: "0.1.0" },
+    commands,
+    globalFlags
+  );
+  process.exit(0);
 }
 
-const command = commands.find((item) => item.name === context.commandName) ?? commands[0];
+const command =
+  commands.find((item) => item.name === context.commandName) ?? commands[0];
 await command.action(context);
 ```
 
@@ -75,9 +81,11 @@ await command.action(context);
 ```bash
 bun add hexbus
 ```
+
 ```bash
 npm install hexbus
 ```
+
 ```bash
 pnpm add hexbus
 ```
