@@ -19,7 +19,7 @@
 			"dependsOn": ["build", "^build"]
 		},
 		"test": {
-			"dependsOn": ["build", "^build", "transit", "@inth/vitest-config#build"],
+			"dependsOn": ["build", "^build", "transit"],
 			"outputs": [
 				"coverage/coverage-summary.json",
 				"coverage/coverage-final.json",
