@@ -30,11 +30,14 @@ function compareVersions(a: string, b: string): number {
 }
 
 function satisfiesComparator(version: string, comparator: string): boolean {
-	const match = comparator
-		.trim()
-		.match(/^(>=|>|<=|<|=|\^|~)?\s*(\d+)(?:\.(\d+))?(?:\.(\d+))?$/);
+	const trimmedComparator = comparator.trim();
+	const match = trimmedComparator.match(
+		/^(>=|>|<=|<|=|\^|~)?\s*(\d+)(?:\.(\d+))?(?:\.(\d+))?$/
+	);
 	if (!match) {
-		return false;
+		throw new Error(
+			`Invalid version comparator "${trimmedComparator}" for version "${version}".`
+		);
 	}
 
 	const operator = match[1] ?? '=';
