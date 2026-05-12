@@ -88,21 +88,21 @@ export function detectColorSupport(options: ColorSupportOptions = {}): boolean {
 	const env = options.env ?? process.env;
 	const platform = options.platform ?? process.platform;
 	const stdout = options.stdout ?? process.stdout;
-	const isForceColorDisabled =
-		env.FORCE_COLOR === '0' || env.FORCE_COLOR?.toLowerCase() === 'false';
+	const forceColor = env.FORCE_COLOR?.toLowerCase();
+	const hasNoColor = Object.prototype.hasOwnProperty.call(env, 'NO_COLOR');
+	const isCI = Object.prototype.hasOwnProperty.call(env, 'CI');
+	const isForceColorDisabled = forceColor === '0' || forceColor === 'false';
 	const isDisabled =
-		Boolean(env.NO_COLOR) ||
-		argv.includes('--no-color') ||
-		isForceColorDisabled;
+		hasNoColor || argv.includes('--no-color') || isForceColorDisabled;
 
 	if (isDisabled) {
 		return false;
 	}
 
 	if (
-		(env.FORCE_COLOR !== undefined &&
-			env.FORCE_COLOR !== '0' &&
-			env.FORCE_COLOR.toLowerCase() !== 'false') ||
+		(forceColor !== undefined &&
+			forceColor !== '0' &&
+			forceColor !== 'false') ||
 		argv.includes('--color')
 	) {
 		return true;
@@ -112,7 +112,7 @@ export function detectColorSupport(options: ColorSupportOptions = {}): boolean {
 		return true;
 	}
 
-	return Boolean(stdout.isTTY) && env.TERM !== 'dumb';
+	return (Boolean(stdout.isTTY) && env.TERM !== 'dumb') || isCI;
 }
 
 export const isColorSupported = detectColorSupport();

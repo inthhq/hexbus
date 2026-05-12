@@ -23,6 +23,13 @@ export const globalFlags: CliFlag[] = [
 		defaultValue: 'info',
 	},
 	{
+		names: ['--no-color'],
+		description: 'Disable color output',
+		type: 'boolean',
+		expectsValue: false,
+		defaultValue: false,
+	},
+	{
 		names: ['--config'],
 		description: 'Specify path to configuration file',
 		type: 'string',

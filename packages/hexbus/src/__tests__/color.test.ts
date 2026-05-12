@@ -51,7 +51,7 @@ describe('detectColorSupport', () => {
 		).toBe(false);
 	});
 
-	it('does not force color only because ci is set', () => {
+	it('supports color in ci without a tty', () => {
 		expect(
 			detectColorSupport({
 				argv: [],
@@ -59,7 +59,7 @@ describe('detectColorSupport', () => {
 				platform: 'linux',
 				stdout: { isTTY: false },
 			})
-		).toBe(false);
+		).toBe(true);
 	});
 
 	it('disables color when no-color is requested', () => {
@@ -67,6 +67,17 @@ describe('detectColorSupport', () => {
 			detectColorSupport({
 				argv: ['--no-color'],
 				env: { FORCE_COLOR: '1' },
+				platform: 'linux',
+				stdout: { isTTY: true },
+			})
+		).toBe(false);
+	});
+
+	it('disables color when NO_COLOR is present but empty', () => {
+		expect(
+			detectColorSupport({
+				argv: [],
+				env: { NO_COLOR: '' },
 				platform: 'linux',
 				stdout: { isTTY: true },
 			})
