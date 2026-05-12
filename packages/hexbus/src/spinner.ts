@@ -33,10 +33,10 @@ export function createSpinner(initialMessage?: string): Spinner {
       spinner.message(message);
     },
     start(message?: string) {
-      spinner.start(message || initialMessage || "Processing...");
+      spinner.start(message ?? initialMessage ?? "Processing...");
     },
     stop(message?: string) {
-      spinner.stop(message || "Done");
+      spinner.stop(message ?? "Done");
     },
   };
 }
@@ -66,10 +66,10 @@ export async function withSpinner<T>(
 
   try {
     const result = await task();
-    spinner.stop(options?.successMessage || "Done");
+    spinner.stop(options?.successMessage ?? "Done");
     return result;
   } catch (error) {
-    spinner.stop(options?.errorMessage || "Failed");
+    spinner.stop(options?.errorMessage ?? "Failed");
     throw error;
   }
 }

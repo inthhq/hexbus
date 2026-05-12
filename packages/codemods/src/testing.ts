@@ -27,6 +27,25 @@ function resolveWithinRoot(projectRoot: string, relativePath: string): string {
 }
 
 /**
+ * Writes fixture files under an existing project root.
+ *
+ * @param projectRoot - Root directory that receives fixture files.
+ * @param fixture - Project-relative files to write.
+ *
+ * @throws When a fixture path is absolute or escapes the project root.
+ */
+export async function writeFixtureTree(
+  projectRoot: string,
+  fixture: FixtureTree
+): Promise<void> {
+  for (const [relativePath, content] of Object.entries(fixture)) {
+    const filePath = resolveWithinRoot(projectRoot, relativePath);
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    await fs.writeFile(filePath, content, "utf-8");
+  }
+}
+
+/**
  * Creates a temporary project, writes fixture files, runs a callback, and
  * removes the project afterward.
  *
@@ -54,25 +73,6 @@ export async function withTempProject<T>(
 }
 
 /**
- * Writes fixture files under an existing project root.
- *
- * @param projectRoot - Root directory that receives fixture files.
- * @param fixture - Project-relative files to write.
- *
- * @throws When a fixture path is absolute or escapes the project root.
- */
-export async function writeFixtureTree(
-  projectRoot: string,
-  fixture: FixtureTree
-): Promise<void> {
-  for (const [relativePath, content] of Object.entries(fixture)) {
-    const filePath = resolveWithinRoot(projectRoot, relativePath);
-    await fs.mkdir(path.dirname(filePath), { recursive: true });
-    await fs.writeFile(filePath, content, "utf-8");
-  }
-}
-
-/**
  * Reads a UTF-8 fixture file from a project root.
  *
  * @param projectRoot - Root directory containing the fixture.
@@ -82,7 +82,7 @@ export async function writeFixtureTree(
  * @throws When the path is absolute, escapes the project root, or cannot be
  * read.
  */
-export async function readFixtureFile(
+export function readFixtureFile(
   projectRoot: string,
   relativePath: string
 ): Promise<string> {

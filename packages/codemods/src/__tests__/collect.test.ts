@@ -17,8 +17,8 @@ describe(collectSourceFiles, () => {
         const files = await collectSourceFiles(projectRoot);
 
         expect(files).toHaveLength(2);
-        expect(files.some((file) => file.endsWith("src/app.ts"))).toBeTruthy();
-        expect(files.some((file) => file.endsWith("src/app.tsx"))).toBeTruthy();
+        expect(files.some((file) => file.endsWith("src/app.ts"))).toBe(true);
+        expect(files.some((file) => file.endsWith("src/app.tsx"))).toBe(true);
       }
     );
   });

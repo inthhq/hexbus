@@ -14,8 +14,13 @@ describe("versioning", () => {
   it("checks caret and tilde ranges", () => {
     expect(satisfiesSimpleRange("1.5.0", "^1.2.0")).toBeTruthy();
     expect(satisfiesSimpleRange("2.0.0", "^1.2.0")).toBeFalsy();
+    expect(satisfiesSimpleRange("0.5.0", "^0")).toBe(true);
+    expect(satisfiesSimpleRange("1.0.0", "^0")).toBe(false);
+    expect(satisfiesSimpleRange("0.0.4", "^0.0.3")).toBe(false);
     expect(satisfiesSimpleRange("1.2.9", "~1.2.0")).toBeTruthy();
     expect(satisfiesSimpleRange("1.3.0", "~1.2.0")).toBeFalsy();
+    expect(satisfiesSimpleRange("1.5.0", "~1")).toBe(true);
+    expect(satisfiesSimpleRange("2.0.0", "~1")).toBe(false);
   });
 
   it("throws on malformed comparators", () => {

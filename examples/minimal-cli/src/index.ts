@@ -30,8 +30,9 @@ function readOwnPackageInfo(): PackageInfo {
 
 const commands: CliCommand[] = [
   {
-    action: async (context) => {
+    action: (context) => {
       context.logger.success("Hello from hexbus.");
+      return Promise.resolve();
     },
     description: "Print a greeting from the example CLI.",
     hint: "Print a greeting",

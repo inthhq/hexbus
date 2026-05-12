@@ -229,8 +229,11 @@ export function createErrorHandlers(
 
       try {
         telemetry?.trackError(cliError, command);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
+      } catch (telemetryError) {
+        const message =
+          telemetryError instanceof Error
+            ? telemetryError.message
+            : String(telemetryError);
         logger.warn(`Failed to track error telemetry: ${message}`);
       }
       cliError.display(logger);

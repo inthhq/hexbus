@@ -18,6 +18,37 @@ export function isVersionRequest(rawArgs: string[]): boolean {
   return rawArgs.includes("-v") || rawArgs.includes("--version");
 }
 
+/**
+ * Formats a user-facing update hint from an update-check result.
+ *
+ * @param result - Update-check result to render.
+ * @returns A formatted hint when the result is outdated and has an update
+ * command, otherwise `null`.
+ */
+export function formatUpdateHint(result: UpdateCheckResult): string | null {
+  if (
+    !result.isOutdated ||
+    result.updateCommand === null ||
+    result.latestVersion === null
+  ) {
+    return null;
+  }
+
+  if (result.source === "brew") {
+    return [
+      `Latest npm version is ${color.green(result.latestVersion)}.`,
+      "If you installed with Homebrew, update with:",
+      `  ${color.cyan(result.updateCommand)}`,
+    ].join("\n");
+  }
+
+  return [
+    `A new version is available: ${color.dim(result.currentVersion)} -> ${color.green(result.latestVersion)}`,
+    "Update with:",
+    `  ${color.cyan(result.updateCommand)}`,
+  ].join("\n");
+}
+
 export function createUpdateCheckResult(
   options: UpdateCheckOptions,
   latestVersion: string | null
@@ -73,35 +104,4 @@ export async function checkForUpdate(
     );
     return createUpdateCheckResult(options, null);
   }
-}
-
-/**
- * Formats a user-facing update hint from an update-check result.
- *
- * @param result - Update-check result to render.
- * @returns A formatted hint when the result is outdated and has an update
- * command, otherwise `null`.
- */
-export function formatUpdateHint(result: UpdateCheckResult): string | null {
-  if (
-    !result.isOutdated ||
-    result.updateCommand === null ||
-    result.latestVersion === null
-  ) {
-    return null;
-  }
-
-  if (result.source === "brew") {
-    return [
-      `Latest npm version is ${color.green(result.latestVersion)}.`,
-      "If you installed with Homebrew, update with:",
-      `  ${color.cyan(result.updateCommand)}`,
-    ].join("\n");
-  }
-
-  return [
-    `A new version is available: ${color.dim(result.currentVersion)} -> ${color.green(result.latestVersion)}`,
-    "Update with:",
-    `  ${color.cyan(result.updateCommand)}`,
-  ].join("\n");
 }

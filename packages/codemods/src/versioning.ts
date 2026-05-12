@@ -42,7 +42,9 @@ function satisfiesComparator(version: string, comparator: string): boolean {
 
   const operator = match[1] ?? "=";
   const major = Number.parseInt(match[2] ?? "0", 10) || 0;
+  const minorProvided = match[3] !== undefined;
   const minor = Number.parseInt(match[3] ?? "0", 10) || 0;
+  const patchProvided = match[4] !== undefined;
   const patch = Number.parseInt(match[4] ?? "0", 10) || 0;
   const target = `${major}.${minor}.${patch}`;
   const comparison = compareVersions(version, target);
@@ -62,9 +64,9 @@ function satisfiesComparator(version: string, comparator: string): boolean {
     }
     case "^": {
       let upperBound: string;
-      if (major > 0) {
+      if (major > 0 || !minorProvided) {
         upperBound = `${major + 1}.0.0`;
-      } else if (minor > 0) {
+      } else if (minor > 0 || !patchProvided) {
         upperBound = `0.${minor + 1}.0`;
       } else {
         upperBound = `0.0.${patch + 1}`;
@@ -72,7 +74,9 @@ function satisfiesComparator(version: string, comparator: string): boolean {
       return comparison >= 0 && compareVersions(version, upperBound) < 0;
     }
     case "~": {
-      const upperBound = `${major}.${minor + 1}.0`;
+      const upperBound = minorProvided
+        ? `${major}.${minor + 1}.0`
+        : `${major + 1}.0.0`;
       return comparison >= 0 && compareVersions(version, upperBound) < 0;
     }
     default: {

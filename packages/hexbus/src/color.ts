@@ -140,16 +140,6 @@ export interface ColorSupportOptions {
  */
 export type Color = Colors & { createColors: typeof createColors };
 
-const createFormatter =
-  (open: string, close: string, replace = open): ColorFormatter =>
-  (input: unknown) => {
-    const string = String(input);
-    const index = string.indexOf(close, open.length);
-    return index === -1
-      ? open + string + close
-      : open + replaceClose(string, close, replace, index) + close;
-  };
-
 const replaceClose = (
   string: string,
   close: string,
@@ -168,6 +158,16 @@ const replaceClose = (
 
   return result + string.slice(cursor);
 };
+
+const createFormatter =
+  (open: string, close: string, replace = open): ColorFormatter =>
+  (input: unknown) => {
+    const string = String(input);
+    const index = string.indexOf(close, open.length);
+    return index === -1
+      ? open + string + close
+      : open + replaceClose(string, close, replace, index) + close;
+  };
 
 /**
  * Detects whether ANSI color output should be enabled.

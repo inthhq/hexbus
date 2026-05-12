@@ -72,12 +72,13 @@ function writeCache(
 }
 
 function createFetchMock(version: string) {
-  return vi.fn(
-    async () =>
+  return vi.fn(() =>
+    Promise.resolve(
       new Response(JSON.stringify({ version }), {
         headers: { "content-type": "application/json" },
         status: 200,
       })
+    )
   );
 }
 
@@ -230,9 +231,9 @@ describe("checkForUpdate", () => {
 
   it("returns a null latest version on fetch failure", async () => {
     const cacheDir = createTempDir();
-    globalThis.fetch = vi.fn(async () => {
-      throw new Error("network down");
-    }) as unknown as typeof fetch;
+    globalThis.fetch = vi.fn(() =>
+      Promise.reject(new Error("network down"))
+    ) as unknown as typeof fetch;
 
     const result = await checkForUpdate({
       binPath: "/usr/local/lib/node_modules/minimal-cli/dist/index.mjs",

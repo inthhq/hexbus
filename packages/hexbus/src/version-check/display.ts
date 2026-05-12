@@ -29,6 +29,19 @@ export async function printVersionInfo(
   }
 }
 
+async function refreshCacheInBackground(
+  options: VersionInfoOptions,
+  logger: VersionInfoLogger
+): Promise<void> {
+  try {
+    await refreshCache(options);
+  } catch (error) {
+    logger.debug?.(
+      `Update check failed: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
 /**
  * Starts a non-blocking update check.
  *
@@ -54,9 +67,5 @@ export function startBackgroundUpdateCheck(options: VersionInfoOptions): void {
     return;
   }
 
-  void refreshCache(options).catch((error: unknown) => {
-    logger.debug?.(
-      `Update check failed: ${error instanceof Error ? error.message : String(error)}`
-    );
-  });
+  void refreshCacheInBackground(options, logger);
 }

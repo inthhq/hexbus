@@ -6,7 +6,7 @@ describe("telemetry", () => {
   it("creates disabled telemetry", () => {
     const telemetry = createDisabledTelemetry();
 
-    expect(telemetry.isDisabled()).toBeTruthy();
+    expect(telemetry.isDisabled()).toBe(true);
     expect(() => telemetry.trackEvent("anything")).not.toThrow();
   });
 
@@ -18,7 +18,7 @@ describe("telemetry", () => {
 
     telemetry.trackEvent("event");
     telemetry.trackCommand("setup", ["arg"], { force: true });
-    expect(telemetry.isDisabled()).toBeFalsy();
+    expect(telemetry.isDisabled()).toBe(false);
     await expect(telemetry.flush()).resolves.toBeUndefined();
   });
 });
