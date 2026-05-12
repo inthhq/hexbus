@@ -19,13 +19,20 @@ interface PackageInfo {
 }
 
 function readOwnPackageInfo(): PackageInfo {
-  const packageJsonUrl = new URL("../package.json", import.meta.url);
-  const content = readFileSync(packageJsonUrl, "utf-8");
-  const parsed = JSON.parse(content) as Partial<PackageInfo>;
-  return {
-    name: parsed.name ?? "minimal-cli",
-    version: parsed.version ?? "unknown",
-  };
+  try {
+    const packageJsonUrl = new URL("../package.json", import.meta.url);
+    const content = readFileSync(packageJsonUrl, "utf-8");
+    const parsed = JSON.parse(content) as Partial<PackageInfo>;
+    return {
+      name: parsed.name ?? "minimal-cli",
+      version: parsed.version ?? "unknown",
+    };
+  } catch (error) {
+    throw new Error(
+      `Failed to read or parse package.json: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error }
+    );
+  }
 }
 
 const commands: CliCommand[] = [

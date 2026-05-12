@@ -138,7 +138,7 @@ export class CliError extends Error {
    * @param logger - Logger used for user-facing output.
    */
   display(logger: CliLogger): void {
-    let message = this.entry.message;
+    let { message } = this.entry;
     if (this.context?.details) {
       message += `: ${this.context.details}`;
     }

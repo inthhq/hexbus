@@ -169,6 +169,8 @@ const createFormatter =
       : open + replaceClose(string, close, replace, index) + close;
   };
 
+const createPlainFormatter = (): ColorFormatter => String;
+
 /**
  * Detects whether ANSI color output should be enabled.
  *
@@ -228,7 +230,7 @@ export const isColorSupported = detectColorSupport();
  * pass-through formatters.
  */
 export function createColors(enabled = isColorSupported): Colors {
-  const formatter = enabled ? createFormatter : () => String;
+  const formatter = enabled ? createFormatter : createPlainFormatter;
 
   return {
     bgBlack: formatter("\u001B[40m", "\u001B[49m"),

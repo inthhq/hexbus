@@ -17,9 +17,9 @@
           "configPath": null,
           "flags": {},
           "fmt.configPath": null,
-          "fmt.experimental": true,
+          "fmt.experimental": false,
           "run": "onSave",
-          "typeAware": false,
+          "typeAware": true,
           "unusedDisableDirectives": false
         }
       }

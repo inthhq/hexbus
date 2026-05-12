@@ -325,7 +325,10 @@ export function getInstallCommand(
   options?: { dev?: boolean }
 ): string {
   const pkgList = packages.join(" ");
-  const devFlag = options?.dev ? (pm.name === "npm" ? "--save-dev" : "-D") : "";
+  let devFlag = "";
+  if (options?.dev) {
+    devFlag = pm.name === "npm" ? "--save-dev" : "-D";
+  }
   return `${pm.addCommand} ${devFlag} ${pkgList}`
     .trim()
     .replaceAll(/\s+/g, " ");

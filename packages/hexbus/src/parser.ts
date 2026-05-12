@@ -178,7 +178,7 @@ export function parseCliArgs(
     }
   }
 
-  const firstPositional = potentialCommandArgs[0];
+  const [firstPositional] = potentialCommandArgs;
   if (
     typeof firstPositional === "string" &&
     commands.some((cmd) => cmd.name === firstPositional)
@@ -273,7 +273,7 @@ export function parseSubcommand(
   args: string[],
   subcommands: CliCommand[]
 ): { subcommand: CliCommand | undefined; remainingArgs: string[] } {
-  const subcommandName = args[0];
+  const [subcommandName] = args;
   const subcommand = subcommands.find((cmd) => cmd.name === subcommandName);
 
   if (subcommand) {

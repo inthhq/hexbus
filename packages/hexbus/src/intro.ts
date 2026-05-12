@@ -1,3 +1,5 @@
+import { promisify } from "node:util";
+
 import figlet from "figlet";
 
 import type { CliContext } from "./types";
@@ -24,16 +26,14 @@ export interface DisplayIntroOptions {
   figletText?: string;
 }
 
-function renderFiglet(text: string): Promise<string> {
-  return new Promise((resolve) => {
-    figlet(text, (error, data) => {
-      if (error || !data) {
-        resolve(text);
-        return;
-      }
-      resolve(data);
-    });
-  });
+const renderFigletAsync = promisify(figlet);
+
+async function renderFiglet(text: string): Promise<string> {
+  try {
+    return (await renderFigletAsync(text)) ?? text;
+  } catch {
+    return text;
+  }
 }
 
 /**

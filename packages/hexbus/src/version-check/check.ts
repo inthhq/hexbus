@@ -2,11 +2,7 @@ import { color } from "../logger";
 import { compareVersions } from "./compare";
 import { detectInstallSource, getUpdateCommand } from "./install-source";
 import { readCachedVersion, refreshCache } from "./registry";
-import type {
-  UpdateCheckOptions,
-  UpdateCheckResult,
-  VersionInfoLogger,
-} from "./types";
+import type { UpdateCheckOptions, UpdateCheckResult } from "./types";
 
 /**
  * Checks whether raw arguments request version output.
@@ -96,10 +92,7 @@ export async function checkForUpdate(
     const latestVersion = await refreshCache(options);
     return createUpdateCheckResult(options, latestVersion);
   } catch (error) {
-    const logger = (
-      options as UpdateCheckOptions & { logger?: VersionInfoLogger }
-    ).logger;
-    logger?.debug?.(
+    options.logger?.debug?.(
       `Update check failed: ${error instanceof Error ? error.message : String(error)}`
     );
     return createUpdateCheckResult(options, null);

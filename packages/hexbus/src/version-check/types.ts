@@ -100,6 +100,10 @@ export interface UpdateCheckOptions {
    */
   binPath?: string;
   /**
+   * Optional logger used for debug output when update checks fail.
+   */
+  logger?: VersionInfoLogger;
+  /**
    * Clock override used by tests and deterministic callers.
    *
    * @default Date.now

@@ -4,7 +4,7 @@
       {
         "hooks": [
           {
-            "command": "bun fix",
+            "command": "bun x ultracite fix",
             "type": "command"
           }
         ],
