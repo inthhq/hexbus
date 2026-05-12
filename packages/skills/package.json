@@ -1,6 +1,6 @@
 {
   "name": "@inth/hexbus-skills",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Shared agent skill installer helpers for Hexbus CLIs.",
   "homepage": "https://github.com/inthhq/hexbus/tree/main/packages/skills",
   "license": "Apache-2.0",
