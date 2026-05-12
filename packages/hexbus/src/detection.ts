@@ -8,9 +8,27 @@ import type {
 	PackageManagerResult,
 } from './types';
 
+/**
+ * Product package identifiers to select after framework detection.
+ *
+ * @remarks
+ * Use this map when a product CLI installs different packages for core,
+ * React, or Next.js projects.
+ *
+ * @typeParam TPackage - Product-specific package identifier.
+ */
 export interface FrameworkPackageMap<TPackage extends string = string> {
+	/**
+	 * Package identifier used when no React framework is detected.
+	 */
 	core?: TPackage;
+	/**
+	 * Package identifier used for React-compatible projects.
+	 */
 	react?: TPackage;
+	/**
+	 * Package identifier used specifically for Next.js projects.
+	 */
 	next?: TPackage;
 }
 
@@ -62,6 +80,21 @@ async function readPackageJson(projectRoot: string) {
 	};
 }
 
+/**
+ * Detects common frontend frameworks from project dependencies.
+ *
+ * @remarks
+ * Detection reads the nearest project's `package.json` and looks at
+ * dependencies and devDependencies. It recognizes Next.js, Remix, Vite React,
+ * Gatsby, generic React, Tailwind CSS, and a configured core fallback.
+ *
+ * @typeParam TPackage - Product-specific package identifier returned in
+ * `FrameworkDetectionResult.pkg`.
+ * @param projectRoot - Directory containing the package.json to inspect.
+ * @param logger - Optional logger for debug diagnostics.
+ * @param packageMap - Product packages to select for detected frameworks.
+ * @returns Framework metadata and the selected product package identifier.
+ */
 export async function detectFramework<TPackage extends string = string>(
 	projectRoot: string,
 	logger?: CliLogger,
@@ -135,6 +168,18 @@ export async function detectFramework<TPackage extends string = string>(
 	}
 }
 
+/**
+ * Finds the nearest project root by walking up to a package.json.
+ *
+ * @remarks
+ * The search is capped at ten directory levels to avoid surprising filesystem
+ * traversal. When no root is found, the original current working directory is
+ * returned and a warning is logged.
+ *
+ * @param cwd - Directory where invocation started.
+ * @param logger - Optional logger for warning output.
+ * @returns The detected project root or `cwd` as a fallback.
+ */
 export async function detectProjectRoot(
 	cwd: string,
 	logger?: CliLogger
@@ -214,6 +259,21 @@ async function promptForPackageManager(
 	return result as PackageManager;
 }
 
+/**
+ * Detects the package manager used by a project.
+ *
+ * @remarks
+ * Detection prefers lockfiles, then the `packageManager` field in
+ * `package.json`, then an optional interactive prompt, and finally `npm`.
+ *
+ * @param projectRoot - Directory to inspect for lockfiles and package.json.
+ * @param logger - Optional logger for debug output.
+ * @param options - Detection options.
+ * @returns Command templates for the detected package manager.
+ *
+ * @throws When interactive prompting is enabled and the user cancels package
+ * manager selection.
+ */
 export async function detectPackageManager(
 	projectRoot: string,
 	logger?: CliLogger,
@@ -244,6 +304,19 @@ export async function detectPackageManager(
 	};
 }
 
+/**
+ * Builds a dependency installation command for the detected package manager.
+ *
+ * @param pm - Package manager command templates.
+ * @param packages - Package names to install.
+ * @param options - Install command options.
+ * @returns A shell command string suitable for display or execution.
+ *
+ * @example
+ * ```ts
+ * getInstallCommand(pm, ['typescript'], { dev: true });
+ * ```
+ */
 export function getInstallCommand(
 	pm: PackageManagerResult,
 	packages: string[],
@@ -254,6 +327,13 @@ export function getInstallCommand(
 	return `${pm.addCommand} ${devFlag} ${pkgList}`.trim().replace(/\s+/g, ' ');
 }
 
+/**
+ * Builds a package-script command for the detected package manager.
+ *
+ * @param pm - Package manager command templates.
+ * @param script - Package script name to run.
+ * @returns A shell command string.
+ */
 export function getRunCommand(
 	pm: PackageManagerResult,
 	script: string
@@ -261,6 +341,14 @@ export function getRunCommand(
 	return `${pm.runCommand} ${script}`;
 }
 
+/**
+ * Builds a one-off binary execution command for the detected package manager.
+ *
+ * @param pm - Package manager command templates.
+ * @param binary - Binary name to execute.
+ * @param args - Optional arguments appended after the binary name.
+ * @returns A shell command string.
+ */
 export function getExecCommand(
 	pm: PackageManagerResult,
 	binary: string,

@@ -5,6 +5,10 @@ import * as path from 'node:path';
 import { color } from './logger';
 import type { CliLogger } from './types';
 
+/**
+ * Installation source inferred from the running binary path and package manager
+ * environment.
+ */
 export type InstallSource =
 	| 'npm-global'
 	| 'brew'
@@ -15,32 +19,108 @@ export type InstallSource =
 	| 'local'
 	| 'unknown';
 
+/**
+ * Result returned by an update check.
+ */
 export interface UpdateCheckResult {
+	/**
+	 * Version currently running.
+	 */
 	currentVersion: string;
+	/**
+	 * Latest version fetched from the registry or cache, or `null` when lookup
+	 * failed.
+	 */
 	latestVersion: string | null;
+	/**
+	 * Whether `latestVersion` is newer than `currentVersion`.
+	 */
 	isOutdated: boolean;
+	/**
+	 * Detected installation source for the current binary.
+	 */
 	source: InstallSource;
+	/**
+	 * Update command appropriate for the detected source, when Hexbus can infer
+	 * one.
+	 */
 	updateCommand: string | null;
+	/**
+	 * User-facing update hint, or `null` when no actionable update is available.
+	 */
 	hint: string | null;
 }
 
+/**
+ * Options for checking package registry state and update hints.
+ */
 export interface UpdateCheckOptions {
+	/**
+	 * Published package name to query.
+	 */
 	packageName: string;
+	/**
+	 * Version currently running.
+	 */
 	currentVersion: string;
+	/**
+	 * Homebrew formula name used for Homebrew update hints.
+	 *
+	 * @default packageName
+	 */
 	brewFormula?: string;
+	/**
+	 * Registry base URL used to fetch latest package metadata.
+	 *
+	 * @default "https://registry.npmjs.org"
+	 */
 	registryUrl?: string;
+	/**
+	 * Maximum registry request duration in milliseconds.
+	 *
+	 * @default 1500
+	 */
 	timeoutMs?: number;
+	/**
+	 * Directory where latest-version cache files are stored.
+	 *
+	 * @default path.join(os.tmpdir(), "hexbus-version-cache")
+	 */
 	cacheDir?: string;
+	/**
+	 * How long cached latest-version data stays fresh.
+	 *
+	 * @default 86400000
+	 */
 	cacheTtlMs?: number;
+	/**
+	 * Binary path used for installation-source detection.
+	 *
+	 * @default process.argv[1]
+	 */
 	binPath?: string;
+	/**
+	 * Clock override used by tests and deterministic callers.
+	 *
+	 * @default Date.now
+	 */
 	now?: () => number;
 }
 
 type VersionInfoLogger = Pick<CliLogger, 'message' | 'note'> &
 	Partial<Pick<CliLogger, 'debug'>>;
 
+/**
+ * Options for printing or background-checking CLI version information.
+ */
 export interface VersionInfoOptions extends UpdateCheckOptions {
+	/**
+	 * Application name shown in version output.
+	 */
 	appName: string;
+	/**
+	 * Logger used for version output, update hints, and optional debug messages.
+	 */
 	logger?: VersionInfoLogger;
 }
 
@@ -63,6 +143,12 @@ const defaultLogger: VersionInfoLogger = {
 	},
 };
 
+/**
+ * Checks whether raw arguments request version output.
+ *
+ * @param rawArgs - Arguments after executable and script path.
+ * @returns `true` when `-v` or `--version` is present.
+ */
 export function isVersionRequest(rawArgs: string[]): boolean {
 	return rawArgs.includes('-v') || rawArgs.includes('--version');
 }
@@ -101,6 +187,17 @@ function envValue(name: string): string | undefined {
 	return process.env[name];
 }
 
+/**
+ * Infers how the current CLI binary was installed.
+ *
+ * @remarks
+ * Detection is heuristic and based on binary path, realpath, and package
+ * manager environment variables. Unknown or transient install modes return
+ * `unknown` instead of throwing.
+ *
+ * @param binPath - Binary path to inspect.
+ * @returns The inferred installation source.
+ */
 export function detectInstallSource(
 	binPath = process.argv[1] ?? ''
 ): InstallSource {
@@ -179,6 +276,15 @@ export function detectInstallSource(
 	return 'unknown';
 }
 
+/**
+ * Builds an update command for an installation source.
+ *
+ * @param source - Installation source returned by `detectInstallSource`.
+ * @param packageName - Package name to update.
+ * @param brewFormula - Homebrew formula name when `source` is `brew`.
+ * @returns A command string when the source has an actionable update path,
+ * otherwise `null`.
+ */
 export function getUpdateCommand(
 	source: InstallSource,
 	packageName: string,
@@ -344,6 +450,18 @@ async function refreshCache(
 	return latestVersion;
 }
 
+/**
+ * Checks whether a newer package version is available.
+ *
+ * @remarks
+ * The function first reads the local cache. On a cache miss it fetches the
+ * latest version from the configured registry and writes the cache on success.
+ * Registry failures produce a result with `latestVersion: null` rather than
+ * throwing.
+ *
+ * @param options - Update-check configuration.
+ * @returns Update metadata and a formatted hint when an update is available.
+ */
 export async function checkForUpdate(
 	options: UpdateCheckOptions
 ): Promise<UpdateCheckResult> {
@@ -356,6 +474,13 @@ export async function checkForUpdate(
 	return createResult(options, latestVersion);
 }
 
+/**
+ * Formats a user-facing update hint from an update-check result.
+ *
+ * @param result - Update-check result to render.
+ * @returns A formatted hint when the result is outdated and has an update
+ * command, otherwise `null`.
+ */
 export function formatUpdateHint(result: UpdateCheckResult): string | null {
 	if (
 		!result.isOutdated ||
@@ -380,6 +505,11 @@ export function formatUpdateHint(result: UpdateCheckResult): string | null {
 	].join('\n');
 }
 
+/**
+ * Prints CLI version information and any available update hint.
+ *
+ * @param options - Version display and update-check options.
+ */
 export async function printVersionInfo(
 	options: VersionInfoOptions
 ): Promise<void> {
@@ -392,6 +522,16 @@ export async function printVersionInfo(
 	}
 }
 
+/**
+ * Starts a non-blocking update check.
+ *
+ * @remarks
+ * Cached hints are displayed synchronously when available. If the cache is
+ * stale or missing, a refresh is started in the background and failures are
+ * only logged at debug level.
+ *
+ * @param options - Version display and update-check options.
+ */
 export function startBackgroundUpdateCheck(options: VersionInfoOptions): void {
 	const logger = options.logger ?? defaultLogger;
 	const cached = readCachedVersion(options);

@@ -1,3 +1,14 @@
+/**
+ * Core exports for building product CLIs with Hexbus.
+ *
+ * @remarks
+ * The package provides a small CLI chassis: argument parsing, context
+ * creation, command contracts, logging, prompts, error handling, telemetry,
+ * environment detection, spinners, help output, and update hints.
+ *
+ * @packageDocumentation
+ */
+
 export {
 	type CreateContextOptions,
 	createCliContext,

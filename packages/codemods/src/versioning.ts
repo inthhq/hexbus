@@ -76,6 +76,19 @@ function satisfiesComparator(version: string, comparator: string): boolean {
 	}
 }
 
+/**
+ * Checks whether a version satisfies a whitespace-delimited comparator range.
+ *
+ * @remarks
+ * This intentionally supports only simple comparators used by codemod metadata:
+ * `>`, `>=`, `<`, `<=`, `=`, `^`, and `~`. It is not a full semver parser.
+ *
+ * @param version - Installed version to test.
+ * @param range - Optional comparator range. Missing ranges always match.
+ * @returns `true` when every comparator in the range matches.
+ *
+ * @throws When a comparator cannot be parsed.
+ */
 export function satisfiesSimpleRange(version: string, range?: string): boolean {
 	if (!range) {
 		return true;
@@ -87,6 +100,17 @@ export function satisfiesSimpleRange(version: string, range?: string): boolean {
 		.every((comparator) => satisfiesComparator(version, comparator));
 }
 
+/**
+ * Determines whether a codemod should be offered for an installed version.
+ *
+ * @remarks
+ * Codemods without version metadata always apply. When the installed version is
+ * unknown, the codemod is treated as applicable so users can still opt in.
+ *
+ * @param installedVersion - Detected installed product version, or `null`.
+ * @param versioning - Optional codemod version constraints.
+ * @returns `true` when the codemod should be shown to the user.
+ */
 export function isCodemodApplicableForVersion(
 	installedVersion: string | null,
 	versioning?: CodemodVersionMetadata
