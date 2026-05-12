@@ -88,9 +88,11 @@ export function detectColorSupport(options: ColorSupportOptions = {}): boolean {
 	const env = options.env ?? process.env;
 	const platform = options.platform ?? process.platform;
 	const stdout = options.stdout ?? process.stdout;
-	const forceColor = env.FORCE_COLOR?.toLowerCase();
-	const hasNoColor = Object.prototype.hasOwnProperty.call(env, 'NO_COLOR');
-	const isCI = Object.prototype.hasOwnProperty.call(env, 'CI');
+	const forceColor = env.FORCE_COLOR
+		? env.FORCE_COLOR.toLowerCase()
+		: undefined;
+	const hasNoColor = !!env.NO_COLOR;
+	const isCI = !!env.CI;
 	const isForceColorDisabled = forceColor === '0' || forceColor === 'false';
 	const isDisabled =
 		hasNoColor || argv.includes('--no-color') || isForceColorDisabled;
