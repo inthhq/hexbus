@@ -3,28 +3,25 @@
   "version": "0.1.0",
   "description": "Shared agent skill installer helpers for Hexbus CLIs.",
   "homepage": "https://github.com/inthhq/hexbus/tree/main/packages/skills",
-  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/inthhq/hexbus.git",
     "directory": "packages/skills"
   },
-  "files": [
-    "dist"
-  ],
+  "license": "Apache-2.0",
   "type": "module",
-  "main": "./dist/index.mjs",
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.mts",
   "exports": {
     ".": {
       "types": "./dist/index.d.mts",
       "import": "./dist/index.mjs"
     }
   },
-  "publishConfig": {
-    "access": "public"
-  },
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "bun --bun tsdown",
     "check-types": "tsc --noEmit",
@@ -37,5 +34,8 @@
   "devDependencies": {
     "@inth/typescript-config": "workspace:*",
     "@inth/vitest-config": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
