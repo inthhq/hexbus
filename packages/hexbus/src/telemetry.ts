@@ -80,7 +80,7 @@ function isEnvDisabled(prefix: string): boolean {
 export function createDisabledTelemetry(): Telemetry {
   return {
     flush: async () => {},
-    flushSync: () => {},
+    flushBackground: () => {},
     isDisabled: () => true,
     shutdown: async () => {},
     trackCommand: () => {},
@@ -154,7 +154,7 @@ export function createTelemetry(options: TelemetryOptions = {}): Telemetry {
 
   return {
     flush,
-    flushSync() {
+    flushBackground() {
       void flush();
     },
     isDisabled() {

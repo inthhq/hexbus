@@ -207,9 +207,12 @@ export function formatFlagHelp(flag: CliFlag): string {
 }
 
 /**
- * Formats all built-in global flags for help output.
+ * Formats a provided set of flags for help output.
  *
- * @returns Newline-delimited help rows for `globalFlags`.
+ * @param flags - Flag definitions to render with `formatFlagHelp`, defaulting
+ * to `globalFlags`.
+ *
+ * @returns Newline-delimited help rows for the provided flag definitions.
  */
 export function generateFlagsHelp(flags: CliFlag[] = globalFlags): string {
   return flags.map(formatFlagHelp).join("\n");

@@ -381,7 +381,7 @@ export interface Telemetry {
    * Entrypoints can call this before short-lived process exits. Implementations
    * should not throw from this method.
    */
-  flushSync(): void;
+  flushBackground(): void;
   /**
    * Performs final telemetry cleanup before process exit.
    */
