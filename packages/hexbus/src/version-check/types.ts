@@ -29,6 +29,11 @@ export interface UpdateCheckResult {
 	latestVersion: string | null;
 	/**
 	 * Whether `latestVersion` is newer than `currentVersion`.
+	 *
+	 * @remarks
+	 * This is `false` when `latestVersion` is `null` due to lookup failure.
+	 * Callers can check `latestVersion === null` to distinguish lookup failure
+	 * from an up-to-date package.
 	 */
 	isOutdated: boolean;
 	/**

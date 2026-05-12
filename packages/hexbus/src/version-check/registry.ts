@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import * as fsSync from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
@@ -7,9 +8,62 @@ import type { CachedVersion, UpdateCheckOptions } from './types';
 const DEFAULT_REGISTRY_URL = 'https://registry.npmjs.org';
 const DEFAULT_TIMEOUT_MS = 1500;
 const DEFAULT_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const MAX_CACHE_NAME_LENGTH = 80;
+const WINDOWS_RESERVED_NAMES = new Set([
+	'con',
+	'prn',
+	'aux',
+	'nul',
+	'com1',
+	'com2',
+	'com3',
+	'com4',
+	'com5',
+	'com6',
+	'com7',
+	'com8',
+	'com9',
+	'lpt1',
+	'lpt2',
+	'lpt3',
+	'lpt4',
+	'lpt5',
+	'lpt6',
+	'lpt7',
+	'lpt8',
+	'lpt9',
+]);
+
+function getCacheNameHash(packageName: string): string {
+	return createHash('sha256').update(packageName).digest('hex').slice(0, 8);
+}
 
 function sanitizeCacheName(packageName: string): string {
-	return packageName.replaceAll('/', '__').replaceAll('@', '');
+	const normalized = packageName
+		.normalize('NFKD')
+		.toLowerCase()
+		.replace(/[^a-z0-9._-]+/g, '_')
+		.replace(/_+/g, '_')
+		.replace(/^[._-]+|[._-]+$/g, '');
+	const fallbackName = normalized || 'package';
+	const baseName = fallbackName.split('.')[0] ?? fallbackName;
+	const isReservedName = WINDOWS_RESERVED_NAMES.has(baseName);
+	const needsHash =
+		normalized !== packageName ||
+		normalized.length === 0 ||
+		isReservedName ||
+		normalized.length > MAX_CACHE_NAME_LENGTH;
+
+	if (!needsHash) {
+		return normalized;
+	}
+
+	const hash = getCacheNameHash(packageName);
+	const maxStemLength = MAX_CACHE_NAME_LENGTH - hash.length - 1;
+	const safeStem = (isReservedName ? `package-${fallbackName}` : fallbackName)
+		.slice(0, maxStemLength)
+		.replace(/[._-]+$/g, '');
+	return `${safeStem || 'package'}-${hash}`;
 }
 
 function getCacheDir(options: UpdateCheckOptions): string {
@@ -62,9 +116,16 @@ async function writeCachedVersion(
 		fetchedAt: options.now?.() ?? Date.now(),
 	};
 
-	await fs.mkdir(cacheDir, { recursive: true });
-	await fs.writeFile(tempPath, `${JSON.stringify(payload)}\n`, 'utf-8');
-	await fs.rename(tempPath, cachePath);
+	try {
+		await fs.mkdir(cacheDir, { recursive: true });
+		await fs.writeFile(tempPath, `${JSON.stringify(payload)}\n`, 'utf-8');
+		await fs.rename(tempPath, cachePath);
+	} catch (error) {
+		await fs.unlink(tempPath).catch(() => {
+			// Ignore cleanup errors so callers see the original write failure.
+		});
+		throw error;
+	}
 }
 
 async function fetchLatestVersion(

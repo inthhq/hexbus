@@ -176,6 +176,42 @@ describe('checkForUpdate', () => {
 		expect(result.latestVersion).toBeNull();
 		expect(result.isOutdated).toBe(false);
 	});
+
+	it('uses filesystem-safe cache names for unusual package names', async () => {
+		const cacheDir = createTempDir();
+		const fetchMock = createFetchMock('1.2.0');
+		globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+		await checkForUpdate({
+			packageName: '@Scope/CON:bad package',
+			currentVersion: '1.0.0',
+			cacheDir,
+		});
+
+		const entries = fsSync.readdirSync(cacheDir);
+		expect(entries).toHaveLength(1);
+		expect(entries[0]).toMatch(/^[a-z0-9._-]+\.json$/);
+		expect(entries[0]).not.toMatch(/^con(?:\.|$)/i);
+	});
+
+	it('cleans up temp cache files when atomic writes fail', async () => {
+		const cacheDir = createTempDir();
+		const fetchMock = createFetchMock('1.2.0');
+		const cachePath = path.join(cacheDir, 'minimal-cli.json');
+		fsSync.mkdirSync(cachePath);
+		globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+		await expect(
+			checkForUpdate({
+				packageName: 'minimal-cli',
+				currentVersion: '1.0.0',
+				cacheDir,
+			})
+		).rejects.toThrow();
+
+		const tempPath = `${cachePath}.${process.pid}.tmp`;
+		expect(fsSync.existsSync(tempPath)).toBe(false);
+	});
 });
 
 describe('formatUpdateHint', () => {
