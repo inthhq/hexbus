@@ -1,6 +1,6 @@
 {
   "name": "@inth/hexbus-codemods",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Reusable codemod harness for Hexbus CLIs.",
   "homepage": "https://github.com/inthhq/hexbus/tree/main/packages/codemods",
   "license": "Apache-2.0",
