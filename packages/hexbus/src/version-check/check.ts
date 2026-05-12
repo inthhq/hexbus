@@ -1,12 +1,8 @@
-import { color } from '../logger';
-import { compareVersions } from './compare';
-import { detectInstallSource, getUpdateCommand } from './install-source';
-import { readCachedVersion, refreshCache } from './registry';
-import type {
-	UpdateCheckOptions,
-	UpdateCheckResult,
-	VersionInfoLogger,
-} from './types';
+import { color } from "../logger";
+import { compareVersions } from "./compare";
+import { detectInstallSource, getUpdateCommand } from "./install-source";
+import { readCachedVersion, refreshCache } from "./registry";
+import type { UpdateCheckOptions, UpdateCheckResult } from "./types";
 
 /**
  * Checks whether raw arguments request version output.
@@ -15,31 +11,62 @@ import type {
  * @returns `true` when `-v` or `--version` is present.
  */
 export function isVersionRequest(rawArgs: string[]): boolean {
-	return rawArgs.includes('-v') || rawArgs.includes('--version');
+  return rawArgs.includes("-v") || rawArgs.includes("--version");
+}
+
+/**
+ * Formats a user-facing update hint from an update-check result.
+ *
+ * @param result - Update-check result to render.
+ * @returns A formatted hint when the result is outdated and has an update
+ * command, otherwise `null`.
+ */
+export function formatUpdateHint(result: UpdateCheckResult): string | null {
+  if (
+    !result.isOutdated ||
+    result.updateCommand === null ||
+    result.latestVersion === null
+  ) {
+    return null;
+  }
+
+  if (result.source === "brew") {
+    return [
+      `Latest npm version is ${color.green(result.latestVersion)}.`,
+      "If you installed with Homebrew, update with:",
+      `  ${color.cyan(result.updateCommand)}`,
+    ].join("\n");
+  }
+
+  return [
+    `A new version is available: ${color.dim(result.currentVersion)} -> ${color.green(result.latestVersion)}`,
+    "Update with:",
+    `  ${color.cyan(result.updateCommand)}`,
+  ].join("\n");
 }
 
 export function createUpdateCheckResult(
-	options: UpdateCheckOptions,
-	latestVersion: string | null
+  options: UpdateCheckOptions,
+  latestVersion: string | null
 ): UpdateCheckResult {
-	const source = detectInstallSource(options.binPath);
-	const updateCommand = getUpdateCommand(
-		source,
-		options.packageName,
-		options.brewFormula
-	);
-	const isOutdated =
-		typeof latestVersion === 'string' &&
-		compareVersions(options.currentVersion, latestVersion) < 0;
-	const result: Omit<UpdateCheckResult, 'hint'> = {
-		currentVersion: options.currentVersion,
-		latestVersion,
-		isOutdated,
-		source,
-		updateCommand,
-	};
-	const hint = formatUpdateHint({ ...result, hint: null });
-	return { ...result, hint };
+  const source = detectInstallSource(options.binPath);
+  const updateCommand = getUpdateCommand(
+    source,
+    options.packageName,
+    options.brewFormula
+  );
+  const isOutdated =
+    typeof latestVersion === "string" &&
+    compareVersions(options.currentVersion, latestVersion) < 0;
+  const result: Omit<UpdateCheckResult, "hint"> = {
+    currentVersion: options.currentVersion,
+    isOutdated,
+    latestVersion,
+    source,
+    updateCommand,
+  };
+  const hint = formatUpdateHint({ ...result, hint: null });
+  return { ...result, hint };
 }
 
 /**
@@ -54,54 +81,20 @@ export function createUpdateCheckResult(
  * @returns Update metadata and a formatted hint when an update is available.
  */
 export async function checkForUpdate(
-	options: UpdateCheckOptions
+  options: UpdateCheckOptions
 ): Promise<UpdateCheckResult> {
-	const cached = readCachedVersion(options);
-	if (cached) {
-		return createUpdateCheckResult(options, cached.version);
-	}
+  const cached = readCachedVersion(options);
+  if (cached) {
+    return createUpdateCheckResult(options, cached.version);
+  }
 
-	try {
-		const latestVersion = await refreshCache(options);
-		return createUpdateCheckResult(options, latestVersion);
-	} catch (error) {
-		const logger = (
-			options as UpdateCheckOptions & { logger?: VersionInfoLogger }
-		).logger;
-		logger?.debug?.(
-			`Update check failed: ${error instanceof Error ? error.message : String(error)}`
-		);
-		return createUpdateCheckResult(options, null);
-	}
-}
-
-/**
- * Formats a user-facing update hint from an update-check result.
- *
- * @param result - Update-check result to render.
- * @returns A formatted hint when the result is outdated and has an update
- * command, otherwise `null`.
- */
-export function formatUpdateHint(result: UpdateCheckResult): string | null {
-	if (
-		!result.isOutdated ||
-		result.updateCommand === null ||
-		result.latestVersion === null
-	) {
-		return null;
-	}
-
-	if (result.source === 'brew') {
-		return [
-			`Latest npm version is ${color.green(result.latestVersion)}.`,
-			'If you installed with Homebrew, update with:',
-			`  ${color.cyan(result.updateCommand)}`,
-		].join('\n');
-	}
-
-	return [
-		`A new version is available: ${color.dim(result.currentVersion)} -> ${color.green(result.latestVersion)}`,
-		'Update with:',
-		`  ${color.cyan(result.updateCommand)}`,
-	].join('\n');
+  try {
+    const latestVersion = await refreshCache(options);
+    return createUpdateCheckResult(options, latestVersion);
+  } catch (error) {
+    options.logger?.debug?.(
+      `Update check failed: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return createUpdateCheckResult(options, null);
+  }
 }

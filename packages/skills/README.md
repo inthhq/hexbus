@@ -3,11 +3,11 @@
 Shared wrapper for installing agent skills through the external `skills` CLI.
 
 ```ts
-import { installSkills } from '@inth/hexbus-skills';
+import { installSkills } from "@inth/hexbus-skills";
 
 await installSkills({
-	skillRef: 'c15t/skills',
-	packageManager: 'bun',
+  skillRef: "c15t/skills",
+  packageManager: "bun",
 });
 ```
 

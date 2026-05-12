@@ -1,97 +1,123 @@
 #!/usr/bin/env bun
 
-import { readFileSync } from 'node:fs';
+import { readFileSync } from "node:fs";
+
 import {
-	type CliCommand,
-	createCliContext,
-	displayIntro,
-	globalFlags,
-	isVersionRequest,
-	printVersionInfo,
-	showHelpMenu,
-	startBackgroundUpdateCheck,
-} from 'hexbus';
+  createCliContext,
+  displayIntro,
+  globalFlags,
+  isVersionRequest,
+  printVersionInfo,
+  showHelpMenu,
+  startBackgroundUpdateCheck,
+} from "hexbus";
+import type { CliCommand } from "hexbus";
 
 interface PackageInfo {
-	name: string;
-	version: string;
+  name: string;
+  version: string;
+}
+
+function getStringProperty(
+  value: Record<string, unknown>,
+  key: "name" | "version"
+): string | undefined {
+  const property = value[key];
+  return typeof property === "string" ? property : undefined;
 }
 
 function readOwnPackageInfo(): PackageInfo {
-	const packageJsonUrl = new URL('../package.json', import.meta.url);
-	const content = readFileSync(packageJsonUrl, 'utf-8');
-	const parsed = JSON.parse(content) as Partial<PackageInfo>;
-	return {
-		name: parsed.name ?? 'minimal-cli',
-		version: parsed.version ?? 'unknown',
-	};
+  try {
+    const packageJsonUrl = new URL("../package.json", import.meta.url);
+    const content = readFileSync(packageJsonUrl, "utf-8");
+    const parsed: unknown = JSON.parse(content);
+
+    if (typeof parsed !== "object" || parsed === null) {
+      return {
+        name: "minimal-cli",
+        version: "unknown",
+      };
+    }
+
+    const packageInfo = parsed as Record<string, unknown>;
+    return {
+      name: getStringProperty(packageInfo, "name") ?? "minimal-cli",
+      version: getStringProperty(packageInfo, "version") ?? "unknown",
+    };
+  } catch (error) {
+    throw new Error(
+      `Failed to read or parse package.json: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error }
+    );
+  }
 }
 
 const commands: CliCommand[] = [
-	{
-		name: 'hello',
-		label: 'Hello',
-		hint: 'Print a greeting',
-		description: 'Print a greeting from the example CLI.',
-		action: async (context) => {
-			context.logger.success('Hello from hexbus.');
-		},
-	},
+  {
+    action: (context) => {
+      context.logger.success("Hello from hexbus.");
+      return Promise.resolve();
+    },
+    description: "Print a greeting from the example CLI.",
+    hint: "Print a greeting",
+    label: "Hello",
+    name: "hello",
+  },
 ];
 
 const rawArgs = process.argv.slice(2);
 const packageInfo = readOwnPackageInfo();
-const version = packageInfo.version;
+const { version } = packageInfo;
 
 if (isVersionRequest(rawArgs)) {
-	await printVersionInfo({
-		appName: 'minimal-cli',
-		packageName: packageInfo.name,
-		currentVersion: version,
-	});
-	process.exit(0);
+  await printVersionInfo({
+    appName: "minimal-cli",
+    currentVersion: version,
+    packageName: packageInfo.name,
+  });
+  process.exit(0);
 }
 
 const context = await createCliContext({
-	rawArgs,
-	commands,
-	appName: 'minimal-cli',
-	configName: 'minimal-cli',
-	interactivePackageManagerDetection: false,
+  appName: "minimal-cli",
+  commands,
+  configName: "minimal-cli",
+  interactivePackageManagerDetection: false,
+  rawArgs,
 });
 
 startBackgroundUpdateCheck({
-	appName: 'minimal-cli',
-	packageName: packageInfo.name,
-	currentVersion: version,
-	logger: context.logger,
+  appName: "minimal-cli",
+  currentVersion: version,
+  logger: context.logger,
+  packageName: packageInfo.name,
 });
 
 if (context.flags.help) {
-	showHelpMenu(
-		context,
-		{ appName: 'minimal-cli', version },
-		commands,
-		globalFlags
-	);
-	process.exit(0);
+  showHelpMenu(
+    context,
+    { appName: "minimal-cli", version },
+    commands,
+    globalFlags
+  );
+  process.exit(0);
 }
 
 await displayIntro(context, {
-	appName: 'minimal-cli',
-	version,
-	tagline: 'A tiny CLI built with hexbus.',
+  appName: "minimal-cli",
+  tagline: "A tiny CLI built with hexbus.",
+  version,
 });
 
 const command = commands.find((item) => item.name === context.commandName);
 
 if (command) {
-	await command.action(context);
+  await command.action(context);
 } else {
-	showHelpMenu(
-		context,
-		{ appName: 'minimal-cli', version },
-		commands,
-		globalFlags
-	);
+  showHelpMenu(
+    context,
+    { appName: "minimal-cli", version },
+    commands,
+    globalFlags
+  );
 }

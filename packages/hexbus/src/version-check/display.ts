@@ -1,15 +1,15 @@
-import { checkForUpdate, createUpdateCheckResult } from './check';
-import { isCacheFresh, readCachedVersion, refreshCache } from './registry';
-import type { VersionInfoLogger, VersionInfoOptions } from './types';
+import { checkForUpdate, createUpdateCheckResult } from "./check";
+import { isCacheFresh, readCachedVersion, refreshCache } from "./registry";
+import type { VersionInfoLogger, VersionInfoOptions } from "./types";
 
 const defaultLogger: VersionInfoLogger = {
-	message(message: string) {
-		process.stdout.write(`${message}\n`);
-	},
-	note(content: string, title?: string) {
-		const prefix = title ? `${title}\n` : '';
-		process.stdout.write(`${prefix}${content}\n`);
-	},
+  message(message: string) {
+    process.stdout.write(`${message}\n`);
+  },
+  note(content: string, title?: string) {
+    const prefix = title ? `${title}\n` : "";
+    process.stdout.write(`${prefix}${content}\n`);
+  },
 };
 
 /**
@@ -18,15 +18,28 @@ const defaultLogger: VersionInfoLogger = {
  * @param options - Version display and update-check options.
  */
 export async function printVersionInfo(
-	options: VersionInfoOptions
+  options: VersionInfoOptions
 ): Promise<void> {
-	const logger = options.logger ?? defaultLogger;
-	logger.message(`${options.appName} v${options.currentVersion}`);
+  const logger = options.logger ?? defaultLogger;
+  logger.message(`${options.appName} v${options.currentVersion}`);
 
-	const result = await checkForUpdate(options);
-	if (result.hint) {
-		logger.note(result.hint, 'Update available');
-	}
+  const result = await checkForUpdate(options);
+  if (result.hint) {
+    logger.note(result.hint, "Update available");
+  }
+}
+
+async function refreshCacheInBackground(
+  options: VersionInfoOptions,
+  logger: VersionInfoLogger
+): Promise<void> {
+  try {
+    await refreshCache(options);
+  } catch (error) {
+    logger.debug?.(
+      `Update check failed: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
 }
 
 /**
@@ -40,23 +53,19 @@ export async function printVersionInfo(
  * @param options - Version display and update-check options.
  */
 export function startBackgroundUpdateCheck(options: VersionInfoOptions): void {
-	const logger = options.logger ?? defaultLogger;
-	const cached = readCachedVersion(options);
+  const logger = options.logger ?? defaultLogger;
+  const cached = readCachedVersion(options);
 
-	if (cached) {
-		const result = createUpdateCheckResult(options, cached.version);
-		if (result.hint) {
-			logger.note(result.hint, 'Update available');
-		}
-	}
+  if (cached) {
+    const result = createUpdateCheckResult(options, cached.version);
+    if (result.hint) {
+      logger.note(result.hint, "Update available");
+    }
+  }
 
-	if (cached && isCacheFresh(cached, options)) {
-		return;
-	}
+  if (cached && isCacheFresh(cached, options)) {
+    return;
+  }
 
-	void refreshCache(options).catch((error: unknown) => {
-		logger.debug?.(
-			`Update check failed: ${error instanceof Error ? error.message : String(error)}`
-		);
-	});
+  void refreshCacheInBackground(options, logger);
 }

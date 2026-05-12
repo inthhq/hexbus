@@ -1,169 +1,170 @@
-import { createHash, randomUUID } from 'node:crypto';
-import * as fsSync from 'node:fs';
-import * as fs from 'node:fs/promises';
-import * as os from 'node:os';
-import * as path from 'node:path';
-import type { CachedVersion, UpdateCheckOptions } from './types';
+import { createHash, randomUUID } from "node:crypto";
+import * as fsSync from "node:fs";
+import * as fs from "node:fs/promises";
+import * as os from "node:os";
+import * as path from "node:path";
 
-const DEFAULT_REGISTRY_URL = 'https://registry.npmjs.org';
+import type { CachedVersion, UpdateCheckOptions } from "./types";
+
+const DEFAULT_REGISTRY_URL = "https://registry.npmjs.org";
 const DEFAULT_TIMEOUT_MS = 1500;
 const DEFAULT_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_CACHE_NAME_LENGTH = 80;
 const WINDOWS_RESERVED_NAMES = new Set([
-	'con',
-	'prn',
-	'aux',
-	'nul',
-	'com1',
-	'com2',
-	'com3',
-	'com4',
-	'com5',
-	'com6',
-	'com7',
-	'com8',
-	'com9',
-	'lpt1',
-	'lpt2',
-	'lpt3',
-	'lpt4',
-	'lpt5',
-	'lpt6',
-	'lpt7',
-	'lpt8',
-	'lpt9',
+  "con",
+  "prn",
+  "aux",
+  "nul",
+  "com1",
+  "com2",
+  "com3",
+  "com4",
+  "com5",
+  "com6",
+  "com7",
+  "com8",
+  "com9",
+  "lpt1",
+  "lpt2",
+  "lpt3",
+  "lpt4",
+  "lpt5",
+  "lpt6",
+  "lpt7",
+  "lpt8",
+  "lpt9",
 ]);
 
 function getCacheNameHash(packageName: string): string {
-	return createHash('sha256').update(packageName).digest('hex').slice(0, 8);
+  return createHash("sha256").update(packageName).digest("hex").slice(0, 8);
 }
 
 function sanitizeCacheName(packageName: string): string {
-	const normalized = packageName
-		.normalize('NFKD')
-		.toLowerCase()
-		.replace(/[^a-z0-9._-]+/g, '_')
-		.replace(/_+/g, '_')
-		.replace(/^[._-]+|[._-]+$/g, '');
-	const fallbackName = normalized || 'package';
-	const baseName = fallbackName.split('.')[0] ?? fallbackName;
-	const isReservedName = WINDOWS_RESERVED_NAMES.has(baseName);
-	const needsHash =
-		normalized !== packageName ||
-		normalized.length === 0 ||
-		isReservedName ||
-		normalized.length > MAX_CACHE_NAME_LENGTH;
+  const normalized = packageName
+    .normalize("NFKD")
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9._-]+/g, "_")
+    .replaceAll(/_+/g, "_")
+    .replaceAll(/^[._-]+|[._-]+$/g, "");
+  const fallbackName = normalized || "package";
+  const baseName = fallbackName.split(".")[0] ?? fallbackName;
+  const isReservedName = WINDOWS_RESERVED_NAMES.has(baseName);
+  const needsHash =
+    normalized !== packageName ||
+    normalized.length === 0 ||
+    isReservedName ||
+    normalized.length > MAX_CACHE_NAME_LENGTH;
 
-	if (!needsHash) {
-		return normalized;
-	}
+  if (!needsHash) {
+    return normalized;
+  }
 
-	const hash = getCacheNameHash(packageName);
-	const maxStemLength = MAX_CACHE_NAME_LENGTH - hash.length - 1;
-	const safeStem = (isReservedName ? `package-${fallbackName}` : fallbackName)
-		.slice(0, maxStemLength)
-		.replace(/[._-]+$/g, '');
-	return `${safeStem || 'package'}-${hash}`;
+  const hash = getCacheNameHash(packageName);
+  const maxStemLength = MAX_CACHE_NAME_LENGTH - hash.length - 1;
+  const safeStem = (isReservedName ? `package-${fallbackName}` : fallbackName)
+    .slice(0, maxStemLength)
+    .replaceAll(/[._-]+$/g, "");
+  return `${safeStem || "package"}-${hash}`;
 }
 
 function getCacheDir(options: UpdateCheckOptions): string {
-	return options.cacheDir ?? path.join(os.tmpdir(), 'hexbus-version-cache');
+  return options.cacheDir ?? path.join(os.tmpdir(), "hexbus-version-cache");
 }
 
 function getCachePath(options: UpdateCheckOptions): string {
-	return path.join(
-		getCacheDir(options),
-		`${sanitizeCacheName(options.packageName)}.json`
-	);
+  return path.join(
+    getCacheDir(options),
+    `${sanitizeCacheName(options.packageName)}.json`
+  );
 }
 
 export function readCachedVersion(
-	options: UpdateCheckOptions
+  options: UpdateCheckOptions
 ): CachedVersion | null {
-	try {
-		const content = fsSync.readFileSync(getCachePath(options), 'utf-8');
-		const parsed = JSON.parse(content) as Partial<CachedVersion>;
-		if (
-			typeof parsed.version === 'string' &&
-			typeof parsed.fetchedAt === 'number'
-		) {
-			return { version: parsed.version, fetchedAt: parsed.fetchedAt };
-		}
-	} catch {
-		// Cache misses and corrupt cache files are non-fatal.
-	}
-	return null;
+  try {
+    const content = fsSync.readFileSync(getCachePath(options), "utf-8");
+    const parsed = JSON.parse(content) as Partial<CachedVersion>;
+    if (
+      typeof parsed.version === "string" &&
+      typeof parsed.fetchedAt === "number"
+    ) {
+      return { fetchedAt: parsed.fetchedAt, version: parsed.version };
+    }
+  } catch {
+    // Cache misses and corrupt cache files are non-fatal.
+  }
+  return null;
 }
 
 export function isCacheFresh(
-	cache: CachedVersion,
-	options: UpdateCheckOptions
+  cache: CachedVersion,
+  options: UpdateCheckOptions
 ): boolean {
-	const now = options.now?.() ?? Date.now();
-	const ttl = options.cacheTtlMs ?? DEFAULT_CACHE_TTL_MS;
-	return now - cache.fetchedAt < ttl;
+  const now = options.now?.() ?? Date.now();
+  const ttl = options.cacheTtlMs ?? DEFAULT_CACHE_TTL_MS;
+  return now - cache.fetchedAt < ttl;
 }
 
 async function writeCachedVersion(
-	options: UpdateCheckOptions,
-	version: string
+  options: UpdateCheckOptions,
+  version: string
 ): Promise<void> {
-	const cachePath = getCachePath(options);
-	const cacheDir = path.dirname(cachePath);
-	const tempPath = `${cachePath}.${process.pid}.${randomUUID()}.tmp`;
-	const payload: CachedVersion = {
-		version,
-		fetchedAt: options.now?.() ?? Date.now(),
-	};
+  const cachePath = getCachePath(options);
+  const cacheDir = path.dirname(cachePath);
+  const tempPath = `${cachePath}.${process.pid}.${randomUUID()}.tmp`;
+  const payload: CachedVersion = {
+    fetchedAt: options.now?.() ?? Date.now(),
+    version,
+  };
 
-	try {
-		await fs.mkdir(cacheDir, { recursive: true });
-		await fs.writeFile(tempPath, `${JSON.stringify(payload)}\n`, 'utf-8');
-		await fs.rename(tempPath, cachePath);
-	} catch (error) {
-		await fs.unlink(tempPath).catch(() => {
-			// Ignore cleanup errors so callers see the original write failure.
-		});
-		throw error;
-	}
+  try {
+    await fs.mkdir(cacheDir, { recursive: true });
+    await fs.writeFile(tempPath, `${JSON.stringify(payload)}\n`, "utf-8");
+    await fs.rename(tempPath, cachePath);
+  } catch (error) {
+    await fs.unlink(tempPath).catch(() => {
+      // Ignore cleanup errors so callers see the original write failure.
+    });
+    throw error;
+  }
 }
 
 async function fetchLatestVersion(
-	options: UpdateCheckOptions
+  options: UpdateCheckOptions
 ): Promise<string | null> {
-	const controller = new AbortController();
-	const timeout = setTimeout(
-		() => controller.abort(),
-		options.timeoutMs ?? DEFAULT_TIMEOUT_MS
-	);
-	const registryUrl = options.registryUrl ?? DEFAULT_REGISTRY_URL;
-	const encodedName = encodeURIComponent(options.packageName);
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(),
+    options.timeoutMs ?? DEFAULT_TIMEOUT_MS
+  );
+  const registryUrl = options.registryUrl ?? DEFAULT_REGISTRY_URL;
+  const encodedName = encodeURIComponent(options.packageName);
 
-	try {
-		const response = await fetch(
-			`${registryUrl.replace(/\/$/, '')}/${encodedName}/latest`,
-			{
-				signal: controller.signal,
-			}
-		);
-		if (!response.ok) {
-			return null;
-		}
-		const payload = (await response.json()) as { version?: unknown };
-		return typeof payload.version === 'string' ? payload.version : null;
-	} catch {
-		return null;
-	} finally {
-		clearTimeout(timeout);
-	}
+  try {
+    const response = await fetch(
+      `${registryUrl.replace(/\/$/, "")}/${encodedName}/latest`,
+      {
+        signal: controller.signal,
+      }
+    );
+    if (!response.ok) {
+      return null;
+    }
+    const payload = (await response.json()) as { version?: unknown };
+    return typeof payload.version === "string" ? payload.version : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export async function refreshCache(
-	options: UpdateCheckOptions
+  options: UpdateCheckOptions
 ): Promise<string | null> {
-	const latestVersion = await fetchLatestVersion(options);
-	if (latestVersion) {
-		await writeCachedVersion(options, latestVersion);
-	}
-	return latestVersion;
+  const latestVersion = await fetchLatestVersion(options);
+  if (latestVersion) {
+    await writeCachedVersion(options, latestVersion);
+  }
+  return latestVersion;
 }

@@ -1,0 +1,69 @@
+{
+  "format_on_save": "on",
+  "formatter": "language_server",
+  "lsp": {
+    "typescript-language-server": {
+      "settings": {
+        "typescript": {
+          "preferences": {
+            "includePackageJsonAutoImports": "on"
+          }
+        }
+      }
+    },
+    "oxfmt": {
+      "initialization_options": {
+        "settings": {
+          "fmt.configPath": null,
+          "run": "onSave"
+        }
+      }
+    },
+    "oxlint": {
+      "initialization_options": {
+        "settings": {
+          "disableNestedConfig": false,
+          "fixKind": "safe_fix",
+          "run": "onType",
+          "typeAware": true,
+          "unusedDisableDirectives": "deny"
+        }
+      }
+    }
+  },
+  "languages": {
+    "JavaScript": {
+      "code_actions_on_format": {
+        "source.fixAll.oxc": true,
+        "source.organizeImports.oxc": true
+      },
+      "formatter": {
+        "language_server": {
+          "name": "oxfmt"
+        }
+      }
+    },
+    "TSX": {
+      "code_actions_on_format": {
+        "source.fixAll.oxc": true,
+        "source.organizeImports.oxc": true
+      },
+      "formatter": {
+        "language_server": {
+          "name": "oxfmt"
+        }
+      }
+    },
+    "TypeScript": {
+      "code_actions_on_format": {
+        "source.fixAll.oxc": true,
+        "source.organizeImports.oxc": true
+      },
+      "formatter": {
+        "language_server": {
+          "name": "oxfmt"
+        }
+      }
+    }
+  }
+}

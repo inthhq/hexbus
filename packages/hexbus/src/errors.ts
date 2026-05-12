@@ -1,25 +1,25 @@
-import type { CliLogger } from './types';
+import type { CliLogger } from "./types";
 
 /**
  * Metadata used to render a known CLI error.
  */
 export interface ErrorCatalogEntry {
-	/**
-	 * Stable machine-readable error code.
-	 */
-	code: string;
-	/**
-	 * User-facing error message.
-	 */
-	message: string;
-	/**
-	 * Optional recovery guidance displayed after the message.
-	 */
-	hint?: string;
-	/**
-	 * Optional documentation URL displayed after the hint.
-	 */
-	docs?: string;
+  /**
+   * Stable machine-readable error code.
+   */
+  code: string;
+  /**
+   * User-facing error message.
+   */
+  message: string;
+  /**
+   * Optional recovery guidance displayed after the message.
+   */
+  hint?: string;
+  /**
+   * Optional documentation URL displayed after the hint.
+   */
+  docs?: string;
 }
 
 /**
@@ -31,28 +31,28 @@ export type ErrorCatalog = Record<string, ErrorCatalogEntry>;
  * Built-in errors used by the Hexbus runtime.
  */
 export const DEFAULT_ERROR_CATALOG = {
-	CONFIG_NOT_FOUND: {
-		code: 'CONFIG_NOT_FOUND',
-		message: 'Configuration not found',
-		hint: 'Run the setup command to create a configuration',
-	},
-	FLAG_VALUE_REQUIRED: {
-		code: 'FLAG_VALUE_REQUIRED',
-		message: 'Flag requires a value',
-	},
-	COMMAND_NOT_FOUND: {
-		code: 'COMMAND_NOT_FOUND',
-		message: 'Unknown command',
-		hint: 'Run --help to see available commands',
-	},
-	CANCELLED: {
-		code: 'CANCELLED',
-		message: 'Operation cancelled',
-	},
-	UNKNOWN_ERROR: {
-		code: 'UNKNOWN_ERROR',
-		message: 'An unexpected error occurred',
-	},
+  CANCELLED: {
+    code: "CANCELLED",
+    message: "Operation cancelled",
+  },
+  COMMAND_NOT_FOUND: {
+    code: "COMMAND_NOT_FOUND",
+    hint: "Run --help to see available commands",
+    message: "Unknown command",
+  },
+  CONFIG_NOT_FOUND: {
+    code: "CONFIG_NOT_FOUND",
+    hint: "Run the setup command to create a configuration",
+    message: "Configuration not found",
+  },
+  FLAG_VALUE_REQUIRED: {
+    code: "FLAG_VALUE_REQUIRED",
+    message: "Flag requires a value",
+  },
+  UNKNOWN_ERROR: {
+    code: "UNKNOWN_ERROR",
+    message: "An unexpected error occurred",
+  },
 } as const satisfies ErrorCatalog;
 
 let activeCatalog: ErrorCatalog = { ...DEFAULT_ERROR_CATALOG };
@@ -78,10 +78,10 @@ let activeCatalog: ErrorCatalog = { ...DEFAULT_ERROR_CATALOG };
  * ```
  */
 export function extendErrorCatalog(entries: ErrorCatalog): void {
-	activeCatalog = {
-		...activeCatalog,
-		...entries,
-	};
+  activeCatalog = {
+    ...activeCatalog,
+    ...entries,
+  };
 }
 
 /**
@@ -97,83 +97,83 @@ export type ErrorCode = keyof typeof DEFAULT_ERROR_CATALOG | string;
  * handlers render the configured message, hint, and documentation link.
  */
 export class CliError extends Error {
-	/**
-	 * Error code requested by the caller.
-	 */
-	readonly code: ErrorCode;
-	/**
-	 * Structured diagnostic details attached by the caller.
-	 */
-	readonly context?: Record<string, unknown>;
-	/**
-	 * Catalog entry used to render this error.
-	 */
-	readonly entry: ErrorCatalogEntry;
+  /**
+   * Error code requested by the caller.
+   */
+  readonly code: ErrorCode;
+  /**
+   * Structured diagnostic details attached by the caller.
+   */
+  readonly context?: Record<string, unknown>;
+  /**
+   * Catalog entry used to render this error.
+   */
+  readonly entry: ErrorCatalogEntry;
 
-	/**
-	 * Creates a catalog-backed CLI error.
-	 *
-	 * @param code - Built-in or product-defined error code.
-	 * @param context - Optional diagnostic details for rendering or telemetry.
-	 */
-	constructor(code: ErrorCode, context?: Record<string, unknown>) {
-		const entry =
-			activeCatalog[code] ??
-			activeCatalog.UNKNOWN_ERROR ??
-			DEFAULT_ERROR_CATALOG.UNKNOWN_ERROR;
-		super(entry.message);
-		this.name = 'CliError';
-		this.code = code;
-		this.context = context;
-		this.entry = entry;
+  /**
+   * Creates a catalog-backed CLI error.
+   *
+   * @param code - Built-in or product-defined error code.
+   * @param context - Optional diagnostic details for rendering or telemetry.
+   */
+  constructor(code: ErrorCode, context?: Record<string, unknown>) {
+    const entry =
+      activeCatalog[code] ??
+      activeCatalog.UNKNOWN_ERROR ??
+      DEFAULT_ERROR_CATALOG.UNKNOWN_ERROR;
+    super(entry.message);
+    this.name = "CliError";
+    this.code = code;
+    this.context = context;
+    this.entry = entry;
 
-		if (Error.captureStackTrace) {
-			Error.captureStackTrace(this, CliError);
-		}
-	}
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, CliError);
+    }
+  }
 
-	/**
-	 * Renders the error message, hint, and docs link through a logger.
-	 *
-	 * @param logger - Logger used for user-facing output.
-	 */
-	display(logger: CliLogger): void {
-		let message = this.entry.message;
-		if (this.context?.details) {
-			message += `: ${this.context.details}`;
-		}
+  /**
+   * Renders the error message, hint, and docs link through a logger.
+   *
+   * @param logger - Logger used for user-facing output.
+   */
+  display(logger: CliLogger): void {
+    let { message } = this.entry;
+    if (this.context?.details) {
+      message += `: ${this.context.details}`;
+    }
 
-		logger.error(message);
+    logger.error(message);
 
-		if (this.entry.hint) {
-			logger.info(`Hint: ${this.entry.hint}`);
-		}
+    if (this.entry.hint) {
+      logger.info(`Hint: ${this.entry.hint}`);
+    }
 
-		if (this.entry.docs) {
-			logger.info(`Docs: ${this.entry.docs}`);
-		}
-	}
+    if (this.entry.docs) {
+      logger.info(`Docs: ${this.entry.docs}`);
+    }
+  }
 
-	/**
-	 * Normalizes an unknown thrown value into a `CliError`.
-	 *
-	 * @param error - Value caught from a `try`/`catch` block.
-	 * @param fallbackCode - Catalog code to use when `error` is not already a
-	 * `CliError`.
-	 * @returns `error` unchanged when it is already a `CliError`, otherwise a
-	 * wrapped `CliError`.
-	 */
-	static from(error: unknown, fallbackCode: ErrorCode = 'UNKNOWN_ERROR') {
-		if (error instanceof CliError) {
-			return error;
-		}
+  /**
+   * Normalizes an unknown thrown value into a `CliError`.
+   *
+   * @param error - Value caught from a `try`/`catch` block.
+   * @param fallbackCode - Catalog code to use when `error` is not already a
+   * `CliError`.
+   * @returns `error` unchanged when it is already a `CliError`, otherwise a
+   * wrapped `CliError`.
+   */
+  static from(error: unknown, fallbackCode: ErrorCode = "UNKNOWN_ERROR") {
+    if (error instanceof CliError) {
+      return error;
+    }
 
-		const message = error instanceof Error ? error.message : String(error);
-		return new CliError(fallbackCode, {
-			details: message,
-			originalError: error,
-		});
-	}
+    const message = error instanceof Error ? error.message : String(error);
+    return new CliError(fallbackCode, {
+      details: message,
+      originalError: error,
+    });
+  }
 }
 
 /**
@@ -185,18 +185,18 @@ export class CliError extends Error {
  * requested code.
  */
 export function isCliError(
-	error: unknown,
-	code?: ErrorCode
+  error: unknown,
+  code?: ErrorCode
 ): error is CliError {
-	if (!(error instanceof CliError)) {
-		return false;
-	}
+  if (!(error instanceof CliError)) {
+    return false;
+  }
 
-	if (code) {
-		return error.code === code;
-	}
+  if (code) {
+    return error.code === code;
+  }
 
-	return true;
+  return true;
 }
 
 /**
@@ -207,36 +207,39 @@ export function isCliError(
  * @returns Error handlers suitable for `CliContext.error`.
  */
 export function createErrorHandlers(
-	logger: CliLogger,
-	telemetry?: { trackError(error: Error, command?: string): void }
+  logger: CliLogger,
+  telemetry?: { trackError(error: Error, command?: string): void }
 ) {
-	return {
-		handleError(error: unknown, command: string): never {
-			const cliError = CliError.from(error);
+  return {
+    handleCancel(
+      message = "Operation cancelled",
+      context?: { command?: string; stage?: string }
+    ): never {
+      logger.warn(message);
 
-			try {
-				telemetry?.trackError(cliError, command);
-			} catch (error) {
-				const message = error instanceof Error ? error.message : String(error);
-				logger.warn(`Failed to track error telemetry: ${message}`);
-			}
-			cliError.display(logger);
-			process.exit(1);
-		},
+      if (context?.command) {
+        logger.info(`Command: ${context.command}`);
+      }
 
-		handleCancel(
-			message = 'Operation cancelled',
-			context?: { command?: string; stage?: string }
-		): never {
-			logger.warn(message);
+      process.exit(0);
+    },
 
-			if (context?.command) {
-				logger.info(`Command: ${context.command}`);
-			}
+    handleError(error: unknown, command: string): never {
+      const cliError = CliError.from(error);
 
-			process.exit(0);
-		},
-	};
+      try {
+        telemetry?.trackError(cliError, command);
+      } catch (telemetryError) {
+        const message =
+          telemetryError instanceof Error
+            ? telemetryError.message
+            : String(telemetryError);
+        logger.warn(`Failed to track error telemetry: ${message}`);
+      }
+      cliError.display(logger);
+      process.exit(1);
+    },
+  };
 }
 
 /**
@@ -253,18 +256,18 @@ export function createErrorHandlers(
  * @returns A function with the same call signature as `fn`.
  */
 export function withErrorHandling<
-	T extends (...args: unknown[]) => Promise<unknown>,
+  T extends (...args: unknown[]) => Promise<unknown>,
 >(fn: T, logger: CliLogger, context?: { command?: string }): T {
-	return (async (...args: Parameters<T>) => {
-		try {
-			return await fn(...args);
-		} catch (error) {
-			const cliError = CliError.from(error);
-			cliError.display(logger);
-			if (context?.command) {
-				logger.info(`Command: ${context.command}`);
-			}
-			process.exit(1);
-		}
-	}) as T;
+  return (async (...args: Parameters<T>) => {
+    try {
+      return await fn(...args);
+    } catch (error) {
+      const cliError = CliError.from(error);
+      cliError.display(logger);
+      if (context?.command) {
+        logger.info(`Command: ${context.command}`);
+      }
+      process.exit(1);
+    }
+  }) as T;
 }

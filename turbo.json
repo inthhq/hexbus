@@ -1,38 +1,38 @@
 {
-	"$schema": "https://turborepo.dev/schema.v2.json",
-	"concurrency": "20",
-	"ui": "tui",
-	"tasks": {
-		"build": {
-			"dependsOn": ["^build"],
-			"outputs": ["dist/**"]
-		},
-		"fmt": {
-			"inputs": ["$TURBO_DEFAULT$", "**/biome.jsonc", "**/biome.json"],
-			"outputs": []
-		},
-		"lint": {
-			"dependsOn": ["transit"],
-			"inputs": ["$TURBO_DEFAULT$", "**/biome.jsonc", "**/biome.json"]
-		},
-		"check-types": {
-			"dependsOn": ["build", "^build"]
-		},
-		"test": {
-			"dependsOn": ["build", "^build", "transit"],
-			"outputs": [
-				"coverage/coverage-summary.json",
-				"coverage/coverage-final.json",
-				"coverage/html/**"
-			]
-		},
-		"dev": {
-			"cache": false,
-			"persistent": true,
-			"interruptible": true
-		},
-		"transit": {
-			"dependsOn": ["^transit"]
-		}
-	}
+  "$schema": "https://turborepo.dev/schema.v2.json",
+  "concurrency": "20",
+  "ui": "tui",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
+    "fmt": {
+      "inputs": ["$TURBO_DEFAULT$", "oxfmt.config.ts", "oxlint.config.ts"],
+      "outputs": []
+    },
+    "lint": {
+      "dependsOn": ["transit"],
+      "inputs": ["$TURBO_DEFAULT$", "oxfmt.config.ts", "oxlint.config.ts"]
+    },
+    "check-types": {
+      "dependsOn": ["build", "^build"]
+    },
+    "test": {
+      "dependsOn": ["build", "^build", "transit"],
+      "outputs": [
+        "coverage/coverage-summary.json",
+        "coverage/coverage-final.json",
+        "coverage/html/**"
+      ]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true,
+      "interruptible": true
+    },
+    "transit": {
+      "dependsOn": ["^transit"]
+    }
+  }
 }

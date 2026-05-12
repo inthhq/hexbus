@@ -1,6 +1,7 @@
-import * as p from '@clack/prompts';
-import { formatLogMessage } from './logger';
-import type { CliCommand, CliFlag, ParsedArgs } from './types';
+import * as p from "@clack/prompts";
+
+import { formatLogMessage } from "./logger";
+import type { CliCommand, CliFlag, ParsedArgs } from "./types";
 
 /**
  * Built-in flags parsed for every Hexbus CLI invocation.
@@ -10,83 +11,83 @@ import type { CliCommand, CliFlag, ParsedArgs } from './types';
  * example, `--no-telemetry` is exposed as `parsedFlags['no-telemetry']`.
  */
 export const globalFlags: CliFlag[] = [
-	{
-		names: ['--help', '-h'],
-		description: 'Show this help message',
-		type: 'special',
-		expectsValue: false,
-	},
-	{
-		names: ['--version', '-v'],
-		description: 'Show the CLI version',
-		type: 'special',
-		expectsValue: false,
-	},
-	{
-		names: ['--logger'],
-		description: 'Set log level (error, warn, info, debug)',
-		type: 'string',
-		expectsValue: true,
-		defaultValue: 'info',
-	},
-	{
-		names: ['--color'],
-		description: 'Force color output',
-		type: 'boolean',
-		expectsValue: false,
-		defaultValue: false,
-	},
-	{
-		names: ['--no-color'],
-		description: 'Disable color output',
-		type: 'boolean',
-		expectsValue: false,
-		defaultValue: false,
-	},
-	{
-		names: ['--config'],
-		description: 'Specify path to configuration file',
-		type: 'string',
-		expectsValue: true,
-	},
-	{
-		names: ['-y', '--yes'],
-		description: 'Skip confirmation prompts',
-		type: 'boolean',
-		expectsValue: false,
-		defaultValue: false,
-	},
-	{
-		names: ['--no-telemetry'],
-		description: 'Disable telemetry data collection',
-		type: 'boolean',
-		expectsValue: false,
-		defaultValue: false,
-	},
-	{
-		names: ['--telemetry-debug'],
-		description: 'Enable debug mode for telemetry',
-		type: 'boolean',
-		expectsValue: false,
-		defaultValue: false,
-	},
-	{
-		names: ['--force'],
-		description: 'Force operation even if files exist',
-		type: 'boolean',
-		expectsValue: false,
-		defaultValue: false,
-	},
+  {
+    description: "Show this help message",
+    expectsValue: false,
+    names: ["--help", "-h"],
+    type: "special",
+  },
+  {
+    description: "Show the CLI version",
+    expectsValue: false,
+    names: ["--version", "-v"],
+    type: "special",
+  },
+  {
+    defaultValue: "info",
+    description: "Set log level (error, warn, info, debug)",
+    expectsValue: true,
+    names: ["--logger"],
+    type: "string",
+  },
+  {
+    defaultValue: false,
+    description: "Force color output",
+    expectsValue: false,
+    names: ["--color"],
+    type: "boolean",
+  },
+  {
+    defaultValue: false,
+    description: "Disable color output",
+    expectsValue: false,
+    names: ["--no-color"],
+    type: "boolean",
+  },
+  {
+    description: "Specify path to configuration file",
+    expectsValue: true,
+    names: ["--config"],
+    type: "string",
+  },
+  {
+    defaultValue: false,
+    description: "Skip confirmation prompts",
+    expectsValue: false,
+    names: ["-y", "--yes"],
+    type: "boolean",
+  },
+  {
+    defaultValue: false,
+    description: "Disable telemetry data collection",
+    expectsValue: false,
+    names: ["--no-telemetry"],
+    type: "boolean",
+  },
+  {
+    defaultValue: false,
+    description: "Enable debug mode for telemetry",
+    expectsValue: false,
+    names: ["--telemetry-debug"],
+    type: "boolean",
+  },
+  {
+    defaultValue: false,
+    description: "Force operation even if files exist",
+    expectsValue: false,
+    names: ["--force"],
+    type: "boolean",
+  },
 ];
 
 function getPrimaryFlagName(flag: CliFlag): string {
-	const longName = flag.names.find((name) => name.startsWith('--'));
-	const fallback = flag.names.reduce(
-		(longest, name) => (name.length > longest.length ? name : longest),
-		''
-	);
-	const chosen = longName ?? fallback;
-	return chosen.replace(/^--?/, '');
+  const longName = flag.names.find((name) => name.startsWith("--"));
+  const fallback = flag.names.reduce(
+    (longest, name) => (name.length > longest.length ? name : longest),
+    ""
+  );
+  const chosen = longName ?? fallback;
+  return chosen.replace(/^--?/, "");
 }
 
 /**
@@ -110,85 +111,86 @@ function getPrimaryFlagName(flag: CliFlag): string {
  * ```
  */
 export function parseCliArgs(
-	rawArgs: string[],
-	commands: CliCommand[]
+  rawArgs: string[],
+  commands: CliCommand[]
 ): ParsedArgs {
-	const parsedFlags: Record<string, string | boolean | undefined> = {};
-	const potentialCommandArgs: string[] = [];
-	let commandName: string | undefined;
-	const commandArgs: string[] = [];
+  const parsedFlags: Record<string, string | boolean | undefined> = {};
+  const potentialCommandArgs: string[] = [];
+  let commandName: string | undefined;
+  const commandArgs: string[] = [];
+  const knownFlagSet = new Set(globalFlags.flatMap((flag) => flag.names));
 
-	for (const flag of globalFlags) {
-		const primaryName = getPrimaryFlagName(flag);
-		if (!primaryName) {
-			continue;
-		}
+  for (const flag of globalFlags) {
+    const primaryName = getPrimaryFlagName(flag);
+    if (!primaryName) {
+      continue;
+    }
 
-		if (flag.type === 'boolean') {
-			parsedFlags[primaryName] = flag.defaultValue ?? false;
-		} else {
-			parsedFlags[primaryName] = flag.defaultValue;
-		}
-	}
+    if (flag.type === "boolean") {
+      parsedFlags[primaryName] = flag.defaultValue ?? false;
+    } else {
+      parsedFlags[primaryName] = flag.defaultValue;
+    }
+  }
 
-	for (let i = 0; i < rawArgs.length; i++) {
-		const arg = rawArgs[i];
-		if (typeof arg !== 'string') {
-			continue;
-		}
+  for (let i = 0; i < rawArgs.length; i++) {
+    const arg = rawArgs[i];
+    if (typeof arg !== "string") {
+      continue;
+    }
 
-		let isFlag = false;
+    let isFlag = false;
 
-		for (const flag of globalFlags) {
-			if (!flag.names.includes(arg)) {
-				continue;
-			}
+    for (const flag of globalFlags) {
+      if (!flag.names.includes(arg)) {
+        continue;
+      }
 
-			const primaryName = getPrimaryFlagName(flag);
-			if (!primaryName) {
-				continue;
-			}
+      const primaryName = getPrimaryFlagName(flag);
+      if (!primaryName) {
+        continue;
+      }
 
-			isFlag = true;
+      isFlag = true;
 
-			if (flag.type === 'boolean') {
-				parsedFlags[primaryName] = true;
-			} else if (flag.expectsValue) {
-				const nextArg = rawArgs[i + 1];
-				if (nextArg && !nextArg.startsWith('-')) {
-					parsedFlags[primaryName] = nextArg;
-					i++;
-				} else {
-					p.log.warn(
-						formatLogMessage(
-							'warn',
-							`Flag ${arg} expects a value, but none was provided`
-						)
-					);
-				}
-			} else {
-				parsedFlags[primaryName] = true;
-			}
-			break;
-		}
+      if (flag.type === "boolean") {
+        parsedFlags[primaryName] = true;
+      } else if (flag.expectsValue) {
+        const nextArg = rawArgs[i + 1];
+        if (nextArg && !knownFlagSet.has(nextArg)) {
+          parsedFlags[primaryName] = nextArg;
+          i++;
+        } else {
+          p.log.warn(
+            formatLogMessage(
+              "warn",
+              `Flag ${arg} expects a value, but none was provided`
+            )
+          );
+        }
+      } else {
+        parsedFlags[primaryName] = true;
+      }
+      break;
+    }
 
-		if (!isFlag) {
-			potentialCommandArgs.push(arg);
-		}
-	}
+    if (!isFlag) {
+      potentialCommandArgs.push(arg);
+    }
+  }
 
-	const firstPositional = potentialCommandArgs[0];
-	if (
-		typeof firstPositional === 'string' &&
-		commands.some((cmd) => cmd.name === firstPositional)
-	) {
-		commandName = firstPositional;
-		commandArgs.push(...potentialCommandArgs.slice(1));
-	} else {
-		commandArgs.push(...potentialCommandArgs);
-	}
+  const [firstPositional] = potentialCommandArgs;
+  if (
+    typeof firstPositional === "string" &&
+    commands.some((cmd) => cmd.name === firstPositional)
+  ) {
+    commandName = firstPositional;
+    commandArgs.push(...potentialCommandArgs.slice(1));
+  } else {
+    commandArgs.push(...potentialCommandArgs);
+  }
 
-	return { commandName, commandArgs, parsedFlags };
+  return { commandArgs, commandName, parsedFlags };
 }
 
 /**
@@ -198,9 +200,9 @@ export function parseCliArgs(
  * @returns A help row containing names, value hint, and description.
  */
 export function formatFlagHelp(flag: CliFlag): string {
-	const names = flag.names.join(', ');
-	const valueHint = flag.expectsValue ? ' <value>' : '';
-	return `  ${names}${valueHint}\t${flag.description}`;
+  const names = flag.names.join(", ");
+  const valueHint = flag.expectsValue ? " <value>" : "";
+  return `  ${names}${valueHint}\t${flag.description}`;
 }
 
 /**
@@ -209,7 +211,7 @@ export function formatFlagHelp(flag: CliFlag): string {
  * @returns Newline-delimited help rows for `globalFlags`.
  */
 export function generateFlagsHelp(): string {
-	return globalFlags.map(formatFlagHelp).join('\n');
+  return globalFlags.map(formatFlagHelp).join("\n");
 }
 
 /**
@@ -227,10 +229,10 @@ export function generateFlagsHelp(): string {
  * ```
  */
 export function hasFlag(
-	flags: ParsedArgs['parsedFlags'],
-	name: string
+  flags: ParsedArgs["parsedFlags"],
+  name: string
 ): boolean {
-	return flags[name] === true;
+  return flags[name] === true;
 }
 
 /**
@@ -241,14 +243,14 @@ export function hasFlag(
  * @returns The flag value when it is a string, otherwise `undefined`.
  */
 export function getFlagValue(
-	flags: ParsedArgs['parsedFlags'],
-	name: string
+  flags: ParsedArgs["parsedFlags"],
+  name: string
 ): string | undefined {
-	const value = flags[name];
-	if (typeof value === 'string') {
-		return value;
-	}
-	return undefined;
+  const value = flags[name];
+  if (typeof value === "string") {
+    return value;
+  }
+  return undefined;
 }
 
 /**
@@ -269,21 +271,21 @@ export function getFlagValue(
  * ```
  */
 export function parseSubcommand(
-	args: string[],
-	subcommands: CliCommand[]
+  args: string[],
+  subcommands: CliCommand[]
 ): { subcommand: CliCommand | undefined; remainingArgs: string[] } {
-	const subcommandName = args[0];
-	const subcommand = subcommands.find((cmd) => cmd.name === subcommandName);
+  const [subcommandName] = args;
+  const subcommand = subcommands.find((cmd) => cmd.name === subcommandName);
 
-	if (subcommand) {
-		return {
-			subcommand,
-			remainingArgs: args.slice(1),
-		};
-	}
+  if (subcommand) {
+    return {
+      remainingArgs: args.slice(1),
+      subcommand,
+    };
+  }
 
-	return {
-		subcommand: undefined,
-		remainingArgs: args,
-	};
+  return {
+    remainingArgs: args,
+    subcommand: undefined,
+  };
 }

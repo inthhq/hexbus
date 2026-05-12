@@ -1,21 +1,21 @@
-import * as p from '@clack/prompts';
+import { spinner as createClackSpinner } from "@clack/prompts";
 
 /**
  * Minimal spinner controller used for long-running CLI tasks.
  */
 export interface Spinner {
-	/**
-	 * Starts the spinner with an optional message override.
-	 */
-	start(message?: string): void;
-	/**
-	 * Stops the spinner with an optional completion message.
-	 */
-	stop(message?: string): void;
-	/**
-	 * Updates the spinner message while it is running.
-	 */
-	message(message: string): void;
+  /**
+   * Starts the spinner with an optional message override.
+   */
+  start(message?: string): void;
+  /**
+   * Stops the spinner with an optional completion message.
+   */
+  stop(message?: string): void;
+  /**
+   * Updates the spinner message while it is running.
+   */
+  message(message: string): void;
 }
 
 /**
@@ -26,19 +26,19 @@ export interface Spinner {
  * @returns A spinner controller.
  */
 export function createSpinner(initialMessage?: string): Spinner {
-	const spinner = p.spinner();
+  const spinnerInstance = createClackSpinner();
 
-	return {
-		start(message?: string) {
-			spinner.start(message || initialMessage || 'Processing...');
-		},
-		stop(message?: string) {
-			spinner.stop(message || 'Done');
-		},
-		message(message: string) {
-			spinner.message(message);
-		},
-	};
+  return {
+    message(message: string) {
+      spinnerInstance.message(message);
+    },
+    start(message?: string) {
+      spinnerInstance.start(message ?? initialMessage ?? "Processing...");
+    },
+    stop(message?: string) {
+      spinnerInstance.stop(message ?? "Done");
+    },
+  };
 }
 
 /**
@@ -54,22 +54,22 @@ export function createSpinner(initialMessage?: string): Spinner {
  * @throws Re-throws any error from `task` after stopping the spinner.
  */
 export async function withSpinner<T>(
-	message: string,
-	task: () => Promise<T>,
-	options?: {
-		successMessage?: string;
-		errorMessage?: string;
-	}
+  message: string,
+  task: () => Promise<T>,
+  options?: {
+    successMessage?: string;
+    errorMessage?: string;
+  }
 ): Promise<T> {
-	const spinner = createSpinner(message);
-	spinner.start();
+  const spinnerInstance = createSpinner(message);
+  spinnerInstance.start();
 
-	try {
-		const result = await task();
-		spinner.stop(options?.successMessage || 'Done');
-		return result;
-	} catch (error) {
-		spinner.stop(options?.errorMessage || 'Failed');
-		throw error;
-	}
+  try {
+    const result = await task();
+    spinnerInstance.stop(options?.successMessage ?? "Done");
+    return result;
+  } catch (error) {
+    spinnerInstance.stop(options?.errorMessage ?? "Failed");
+    throw error;
+  }
 }

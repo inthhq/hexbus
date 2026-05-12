@@ -13,5 +13,5 @@ Includes:
 - intro and help rendering
 
 ```ts
-import { createCliContext, displayIntro, showHelpMenu } from 'hexbus';
+import { createCliContext, displayIntro, showHelpMenu } from "hexbus";
 ```
