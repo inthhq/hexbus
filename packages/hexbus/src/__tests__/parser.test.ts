@@ -48,19 +48,24 @@ describe(parseCliArgs, () => {
   });
 
   it("parses caller-provided global flags", () => {
-    const parsed = parseCliArgs(["setup", "--resume"], commands, [
-      {
-        defaultValue: false,
-        description: "Resume a previous run",
-        expectsValue: false,
-        names: ["--resume"],
-        type: "boolean",
-      },
-    ]);
+    const parsed = parseCliArgs(
+      ["setup", "--resume", "--logger", "debug"],
+      commands,
+      [
+        {
+          defaultValue: false,
+          description: "Resume a previous run",
+          expectsValue: false,
+          names: ["--resume"],
+          type: "boolean",
+        },
+      ]
+    );
 
     expect(parsed.commandName).toBe("setup");
     expect(parsed.commandArgs).toStrictEqual([]);
     expect(hasFlag(parsed.parsedFlags, "resume")).toBeTruthy();
+    expect(getFlagValue(parsed.parsedFlags, "logger")).toBe("debug");
   });
 
   it("parses negative numbers as flag values", () => {

@@ -90,18 +90,43 @@ function getPrimaryFlagName(flag: CliFlag): string {
   return chosen.replace(/^--?/, "");
 }
 
+function mergeFlags(flags: CliFlag[]): CliFlag[] {
+  const merged = new Map<string, CliFlag>();
+
+  for (const flag of globalFlags) {
+    const primaryName = getPrimaryFlagName(flag);
+    if (primaryName) {
+      merged.set(primaryName, flag);
+    }
+  }
+
+  for (const flag of flags) {
+    const primaryName = getPrimaryFlagName(flag);
+    if (primaryName) {
+      merged.set(primaryName, flag);
+    }
+  }
+
+  return [...merged.values()];
+}
+
 /**
  * Parses raw command-line arguments into command name, command args, and
- * global flags.
+ * global and caller-provided flags.
  *
  * @remarks
- * Only flags declared in `globalFlags` are parsed. Unknown flags and
- * positional arguments are preserved as command arguments unless the first
- * positional argument matches a registered top-level command.
+ * Flags declared in `globalFlags` and `flags` are parsed. Unknown flags and
+ * other positional arguments are preserved as command arguments. If the first
+ * positional argument matches a registered top-level command in `commands`, it
+ * is returned as `commandName` and removed from `commandArgs`.
  *
  * @param rawArgs - Arguments after the executable and script path.
  * @param commands - Top-level commands used to identify the command name.
- * @returns Normalized parsed arguments for context creation or custom routing.
+ * @param flags - Additional global flag definitions to parse alongside
+ * `globalFlags`. Caller-provided flags override built-in definitions that use
+ * the same primary flag name.
+ * @returns Normalized parsed output containing the matched command name,
+ * remaining command arguments, and parsed flag values keyed by primary name.
  *
  * @example
  * ```ts
@@ -113,15 +138,16 @@ function getPrimaryFlagName(flag: CliFlag): string {
 export function parseCliArgs(
   rawArgs: string[],
   commands: CliCommand[],
-  flags: CliFlag[] = globalFlags
+  flags: CliFlag[] = []
 ): ParsedArgs {
+  const mergedFlags = mergeFlags(flags);
   const parsedFlags: Record<string, string | boolean | undefined> = {};
   const potentialCommandArgs: string[] = [];
   let commandName: string | undefined;
   const commandArgs: string[] = [];
-  const knownFlagSet = new Set(flags.flatMap((flag) => flag.names));
+  const knownFlagSet = new Set(mergedFlags.flatMap((flag) => flag.names));
 
-  for (const flag of flags) {
+  for (const flag of mergedFlags) {
     const primaryName = getPrimaryFlagName(flag);
     if (!primaryName) {
       continue;
@@ -142,7 +168,7 @@ export function parseCliArgs(
 
     let isFlag = false;
 
-    for (const flag of flags) {
+    for (const flag of mergedFlags) {
       if (!flag.names.includes(arg)) {
         continue;
       }
