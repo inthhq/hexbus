@@ -21,6 +21,17 @@ bun run check-types
 
 See `examples/minimal-cli` for a small CLI built on `hexbus`.
 
+## Update Checks
+
+`hexbus` includes helpers for fast `-v` / `--version` handling and
+install-source-aware update hints. Version requests can run before
+`createCliContext`, so they do not need project detection or config loading.
+
+Normal CLI runs can call `startBackgroundUpdateCheck` to show cached update
+hints immediately and refresh stale registry data in the background. The helper
+detects npm global, Homebrew, transient runners such as `npx`, and local
+installs, then recommends the appropriate update command when one is available.
+
 ## Migrating c15t
 
 Once these packages are published, `@c15t/cli` can consume them by:

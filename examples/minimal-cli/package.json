@@ -1,0 +1,23 @@
+{
+	"name": "@inth/hexbus-example-minimal-cli",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"bin": {
+		"minimal-cli": "./src/index.ts"
+	},
+	"scripts": {
+		"build": "echo '@inth/hexbus-example-minimal-cli has no build task'",
+		"check-types": "tsc --noEmit",
+		"dev": "bun ./src/index.ts",
+		"fmt": "bun biome format --write . && bun biome check --formatter-enabled=false --linter-enabled=false --write",
+		"lint": "bun biome lint ./src",
+		"test": "bun ./src/index.ts --help"
+	},
+	"dependencies": {
+		"hexbus": "workspace:*"
+	},
+	"devDependencies": {
+		"@inth/typescript-config": "workspace:*"
+	}
+}
