@@ -1,6 +1,6 @@
 import { createCliContext } from "./context";
 import type { CreateContextOptions } from "./context";
-import { dispatchCommand } from "./dispatch";
+import { dispatchCommand, resolveCommandRoute } from "./dispatch";
 import type {
   DispatchCommandResult,
   DispatchNoCommandBehavior,
@@ -39,6 +39,14 @@ export interface RunCliCommandHookOptions<
    * Command selected from the configured command list.
    */
   command: CliCommand<TContext>;
+  /**
+   * Command objects from the top-level command to the selected command.
+   */
+  commandPath: CliCommand<TContext>[];
+  /**
+   * Command names from the top-level command to the selected command.
+   */
+  commandNames: string[];
 }
 
 /**
@@ -57,6 +65,11 @@ export interface RunCliErrorHookOptions<
    * command.
    */
   command?: CliCommand<TContext>;
+  /**
+   * Command names from the top-level command to the selected command, when
+   * dispatch reached a command.
+   */
+  commandNames?: string[];
   /**
    * Error thrown by context hooks, command hooks, or command execution.
    */
@@ -116,6 +129,14 @@ export interface RunCliNoCommandOptions<
    */
   commands: CliCommand<TContext>[];
   /**
+   * Command group path whose subcommands are being handled.
+   */
+  commandPath: CliCommand<TContext>[];
+  /**
+   * Command group names whose subcommands are being handled.
+   */
+  commandNames: string[];
+  /**
    * Package metadata used for help, version, and update output.
    */
   packageInfo: PackageInfo;
@@ -146,7 +167,7 @@ export type RunCliNoCommandBehavior<
  */
 export interface RunCliHelpOptions extends Omit<
   ShowHelpMenuOptions,
-  "appName" | "version"
+  "appName" | "commandPath" | "version"
 > {
   /**
    * Flags rendered in help output. Defaults to Hexbus global flags plus any
@@ -273,13 +294,20 @@ function findUnknownCommandOption(context: CliContext): string | undefined {
 }
 
 function createHelpOptions(
-  options: Pick<RunCliOptions, "appName" | "help" | "packageInfo">
+  options: Pick<RunCliOptions, "appName" | "help" | "packageInfo">,
+  commandNames: string[] = []
 ): ShowHelpMenuOptions {
-  return {
+  const helpOptions: ShowHelpMenuOptions = {
     appName: options.appName,
     docsUrl: options.help?.docsUrl,
     version: options.packageInfo.version,
   };
+
+  if (commandNames.length > 0) {
+    helpOptions.commandPath = commandNames;
+  }
+
+  return helpOptions;
 }
 
 function createUpdateOptions(
@@ -303,16 +331,40 @@ function createUpdateOptions(
 function showRunnerHelp<
   TPackage extends string,
   TContext extends CliContext<TPackage>,
->(context: TContext, options: RunCliOptions<TPackage, TContext>): void {
+>(
+  context: TContext,
+  options: RunCliOptions<TPackage, TContext>,
+  commands: CliCommand[] = options.commands as CliCommand[],
+  commandNames: string[] = []
+): void {
   showHelpMenu(
     context,
-    createHelpOptions(options),
-    options.commands as CliCommand[],
+    createHelpOptions(options, commandNames),
+    commands,
     getHelpFlags(options.help?.flags, options.context?.globalFlags)
   );
   context.telemetry.trackEvent(TelemetryEventName.HELP_DISPLAYED, {
-    command: context.commandName ?? "none",
+    command: commandNames.join(" ") || context.commandName || "none",
   });
+}
+
+function showScopedRunnerHelp<
+  TPackage extends string,
+  TContext extends CliContext<TPackage>,
+>(context: TContext, options: RunCliOptions<TPackage, TContext>): void {
+  const route = resolveCommandRoute(context, options.commands);
+
+  if (route?.command.subcommands && route.command.subcommands.length > 0) {
+    showRunnerHelp(
+      context,
+      options,
+      route.command.subcommands as CliCommand[],
+      route.commandNames
+    );
+    return;
+  }
+
+  showRunnerHelp(context, options);
 }
 
 function createDispatchNoCommandBehavior<
@@ -326,8 +378,10 @@ function createDispatchNoCommandBehavior<
 
   if (behavior.mode === "custom") {
     return {
-      action: ({ commands, context }) =>
+      action: ({ commandNames, commandPath, commands, context }) =>
         behavior.action({
+          commandNames,
+          commandPath,
           commands,
           context,
           packageInfo: options.packageInfo,
@@ -345,7 +399,8 @@ function createDispatchNoCommandBehavior<
   }
 
   return {
-    action: ({ context }) => showRunnerHelp(context, options),
+    action: ({ commandNames, commands, context }) =>
+      showRunnerHelp(context, options, commands as CliCommand[], commandNames),
     mode: "help",
   };
 }
@@ -376,6 +431,7 @@ interface RunCliState<
   TPackage extends string,
   TContext extends CliContext<TPackage>,
 > {
+  commandNames?: string[];
   context?: TContext;
   errorToHandle?: unknown;
   outcome: RunCliOutcome;
@@ -435,7 +491,12 @@ function dispatchRunnerCommand<
 ): Promise<DispatchCommandResult<TContext>> {
   return dispatchCommand(runnerContext, options.commands, {
     hooks: {
-      async onCommandStart({ command, context: commandContext }) {
+      async onCommandStart({
+        command,
+        commandNames,
+        commandPath,
+        context: commandContext,
+      }) {
         if (options.intro !== false) {
           await displayIntro(commandContext, {
             ...options.intro,
@@ -444,59 +505,79 @@ function dispatchRunnerCommand<
           });
         }
 
+        const commandLabel = commandNames.join(" ");
         commandContext.telemetry.trackCommand(
-          command.name,
+          commandLabel,
           commandContext.commandArgs,
           commandContext.flags
         );
         await options.hooks?.beforeCommand?.({
           command,
+          commandNames,
+          commandPath,
           context: commandContext,
         });
       },
-      async onCommandSuccess({ command, context: commandContext }) {
+      async onCommandSuccess({
+        command,
+        commandNames,
+        commandPath,
+        context: commandContext,
+      }) {
         await options.hooks?.afterCommand?.({
           command,
+          commandNames,
+          commandPath,
           context: commandContext,
           result: undefined,
         });
         commandContext.telemetry.trackEvent(
           TelemetryEventName.COMMAND_SUCCEEDED,
           {
-            command: command.name,
+            command: commandNames.join(" "),
           }
         );
       },
-      onSelectionClose({ context: commandContext, result }) {
+      onSelectionClose({ commandNames, context: commandContext, result }) {
+        const selectedCommand =
+          result.type === "selected"
+            ? [...commandNames, result.command.name].join(" ")
+            : "none";
         commandContext.telemetry.trackEvent(
           TelemetryEventName.INTERACTIVE_MENU_EXITED,
           {
-            command: result.type === "selected" ? result.command.name : "none",
+            command: selectedCommand,
             reason: getSelectionCloseReason(result),
           }
         );
       },
-      onSelectionOpen({ context: commandContext }) {
+      onSelectionOpen({ context: commandContext, reason }) {
         commandContext.telemetry.trackEvent(
           TelemetryEventName.INTERACTIVE_MENU_OPENED,
           {
-            reason: "no_command",
+            reason,
           }
         );
       },
-      onUnknownCommand({ commandName, context: commandContext }) {
+      onUnknownCommand({ commandName, commandNames, context: commandContext }) {
+        const commandLabel = [...commandNames, commandName].join(" ");
         commandContext.telemetry.trackEvent(
           TelemetryEventName.COMMAND_UNKNOWN,
           {
-            command: commandName,
+            command: commandLabel,
           }
         );
       },
     },
     noCommand: createDispatchNoCommandBehavior(options, rawArgs),
     unknownCommand: {
-      action: ({ context: commandContext }) =>
-        showRunnerHelp(commandContext, options),
+      action: ({ commandNames, commands, context: commandContext }) =>
+        showRunnerHelp(
+          commandContext,
+          options,
+          commands as CliCommand[],
+          commandNames
+        ),
     },
   });
 }
@@ -517,19 +598,20 @@ async function trackRunnerError<
   }
 
   const commandName =
-    state.selectedCommand?.name ?? state.context.commandName ?? "none";
+    state.commandNames?.join(" ") ??
+    state.selectedCommand?.name ??
+    state.context.commandName ??
+    "none";
   const normalizedError = normalizeError(error);
   state.context.telemetry.trackEvent(TelemetryEventName.COMMAND_FAILED, {
     command: commandName,
     errorMessage: normalizedError.message,
     errorName: normalizedError.name,
   });
-  state.context.telemetry.trackError(
-    normalizedError,
-    state.selectedCommand?.name ?? state.context.commandName
-  );
+  state.context.telemetry.trackError(normalizedError, commandName);
   await options.hooks?.onError?.({
     command: state.selectedCommand,
+    commandNames: state.commandNames,
     context: state.context,
     error,
   });
@@ -547,18 +629,24 @@ async function applyDispatchResult<
     result.type === "command_executed" ||
     result.type === "command_selected"
   ) {
+    state.commandNames = result.commandNames;
     state.selectedCommand = result.command;
     state.outcome = "command";
     return;
   }
 
   if (result.type === "command_failed") {
+    state.commandNames = result.commandNames;
     state.selectedCommand = result.command;
     await trackRunnerError(result.error, options, state);
     return;
   }
 
   if (result.type === "unknown_command") {
+    state.commandNames =
+      result.commandNames.length > 0
+        ? [...result.commandNames, result.commandName]
+        : [result.commandName];
     state.outcome = "unknown_command";
     return;
   }
@@ -584,8 +672,13 @@ async function shutdownRunnerTelemetry<
     return;
   }
 
+  const commandName =
+    state.commandNames?.join(" ") ??
+    state.selectedCommand?.name ??
+    state.context.commandName ??
+    "none";
   state.context.telemetry.trackEvent(TelemetryEventName.CLI_COMPLETED, {
-    command: state.selectedCommand?.name ?? state.context.commandName ?? "none",
+    command: commandName,
     outcome: state.outcome,
     success: state.errorToHandle === undefined,
   });
@@ -602,7 +695,10 @@ function handleRunnerError<
 
   state.context.error.handleError(
     state.errorToHandle,
-    state.selectedCommand?.name ?? state.context.commandName ?? "cli"
+    state.commandNames?.join(" ") ??
+      state.selectedCommand?.name ??
+      state.context.commandName ??
+      "cli"
   );
 }
 
@@ -636,7 +732,7 @@ export async function runCli<
 
     if (state.context.flags.help === true) {
       state.outcome = "help";
-      showRunnerHelp(state.context, options);
+      showScopedRunnerHelp(state.context, options);
       return;
     }
 

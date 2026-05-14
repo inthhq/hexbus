@@ -16,6 +16,10 @@ export interface ShowHelpMenuOptions {
    * Optional documentation URL shown after commands and global flags.
    */
   docsUrl?: string;
+  /**
+   * Command path whose children are being rendered.
+   */
+  commandPath?: string[];
 }
 
 /**
@@ -34,6 +38,12 @@ export function showHelpMenu(
   flags: CliFlag[]
 ): void {
   const visibleCommands = commands.filter((command) => !command.hidden);
+  const commandPath = options.commandPath ?? [];
+  const scopedCommand = commandPath.join(" ");
+  const commandPrefix = [options.appName, scopedCommand]
+    .filter(Boolean)
+    .join(" ");
+  const commandPlaceholder = visibleCommands.length > 0 ? " <command>" : "";
   const commandRows = visibleCommands
     .map((command) => `  ${command.name.padEnd(16)} ${command.description}`)
     .join("\n");
@@ -46,7 +56,7 @@ export function showHelpMenu(
   const docsLine = options.docsUrl ? `\n\nDocs:\n  ${options.docsUrl}` : "";
 
   context.logger.note(
-    `${options.appName} ${options.version}\n\nUsage:\n  ${options.appName} <command> [options]\n\nCommands:\n${commandRows}\n\nGlobal Flags:\n${flagRows}${docsLine}`,
+    `${options.appName} ${options.version}\n\nUsage:\n  ${commandPrefix}${commandPlaceholder} [options]\n\nCommands:\n${commandRows}\n\nGlobal Flags:\n${flagRows}${docsLine}`,
     `${options.appName} CLI`
   );
 }

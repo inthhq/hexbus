@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
-import { runCli } from "../../index";
-import type { CliCommand } from "../../types";
+import { parseCommandArgs, runCli } from "../../index";
+import type { CliCommand } from "../../index";
 
 const commands: CliCommand[] = [
   {
@@ -25,6 +25,27 @@ const commands: CliCommand[] = [
     hint: "Report telemetry",
     label: "Telemetry",
     name: "telemetry",
+  },
+  {
+    description: "Developer tools.",
+    hint: "Run tools",
+    label: "Tools",
+    name: "tools",
+    subcommands: [
+      {
+        action: (context) => {
+          const args = parseCommandArgs(context.commandArgs, {
+            positionals: [{ name: "target", required: true }],
+          });
+          context.logger.success(`migrate target: ${args.positionals.target}`);
+          return Promise.resolve();
+        },
+        description: "Run migrations.",
+        hint: "Migrate data",
+        label: "Migrate",
+        name: "migrate",
+      },
+    ],
   },
 ];
 

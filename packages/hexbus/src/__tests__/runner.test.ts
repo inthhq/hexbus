@@ -221,10 +221,17 @@ describe(runCli, () => {
       ["world"],
       { logger: "debug" }
     );
-    expect(beforeCommand).toHaveBeenCalledWith({ command, context });
+    expect(beforeCommand).toHaveBeenCalledWith({
+      command,
+      commandNames: ["hello"],
+      commandPath: [command],
+      context,
+    });
     expect(action).toHaveBeenCalledWith(context);
     expect(afterCommand).toHaveBeenCalledWith({
       command,
+      commandNames: ["hello"],
+      commandPath: [command],
       context,
       result: undefined,
     });
@@ -233,6 +240,123 @@ describe(runCli, () => {
       { command: "hello" }
     );
     expect(context.telemetry.shutdown).toHaveBeenCalledOnce();
+  });
+
+  it("dispatches nested commands and tracks the command path", async () => {
+    const action = vi.fn(() => Promise.resolve());
+    const migrateCommand: CliCommand = {
+      action,
+      description: "Run migrations",
+      hint: "Migrate",
+      label: "Migrate",
+      name: "migrate",
+    };
+    const toolsCommand: CliCommand = {
+      description: "Developer tools",
+      hint: "Tools",
+      label: "Tools",
+      name: "tools",
+      subcommands: [migrateCommand],
+    };
+    const context = createContext({
+      commandArgs: ["migrate", "prod"],
+      commandName: "tools",
+    });
+    const beforeCommand = vi.fn();
+    const afterCommand = vi.fn();
+    mocks.createCliContext.mockResolvedValue(context);
+
+    await runCli({
+      appName: "test-cli",
+      commands: [toolsCommand],
+      hooks: {
+        afterCommand,
+        beforeCommand,
+      },
+      packageInfo,
+      rawArgs: ["tools", "migrate", "prod"],
+    });
+
+    expect(context.telemetry.trackCommand).toHaveBeenCalledWith(
+      "tools migrate",
+      ["prod"],
+      context.flags
+    );
+    expect(beforeCommand).toHaveBeenCalledWith({
+      command: migrateCommand,
+      commandNames: ["tools", "migrate"],
+      commandPath: [toolsCommand, migrateCommand],
+      context: expect.objectContaining({
+        commandArgs: ["prod"],
+        commandName: "tools",
+      }),
+    });
+    expect(action).toHaveBeenCalledWith(
+      expect.objectContaining({
+        commandArgs: ["prod"],
+        commandName: "tools",
+      })
+    );
+    expect(afterCommand).toHaveBeenCalledWith({
+      command: migrateCommand,
+      commandNames: ["tools", "migrate"],
+      commandPath: [toolsCommand, migrateCommand],
+      context: expect.objectContaining({
+        commandArgs: ["prod"],
+        commandName: "tools",
+      }),
+      result: undefined,
+    });
+    expect(context.telemetry.trackEvent).toHaveBeenCalledWith(
+      TelemetryEventName.COMMAND_SUCCEEDED,
+      { command: "tools migrate" }
+    );
+  });
+
+  it("renders scoped help for command groups", async () => {
+    const migrateCommand: CliCommand = {
+      action: vi.fn(() => Promise.resolve()),
+      description: "Run migrations",
+      hint: "Migrate",
+      label: "Migrate",
+      name: "migrate",
+    };
+    const toolsCommand: CliCommand = {
+      description: "Developer tools",
+      hint: "Tools",
+      label: "Tools",
+      name: "tools",
+      subcommands: [migrateCommand],
+    };
+    const context = createContext({
+      commandArgs: [],
+      commandName: "tools",
+      flags: { help: true },
+    });
+    mocks.createCliContext.mockResolvedValue(context);
+
+    await runCli({
+      appName: "test-cli",
+      commands: [toolsCommand],
+      packageInfo,
+      rawArgs: ["tools", "--help"],
+    });
+
+    expect(mocks.showHelpMenu).toHaveBeenCalledWith(
+      context,
+      {
+        appName: "test-cli",
+        commandPath: ["tools"],
+        docsUrl: undefined,
+        version: "1.2.3",
+      },
+      [migrateCommand],
+      expect.any(Array)
+    );
+    expect(context.telemetry.trackEvent).toHaveBeenCalledWith(
+      TelemetryEventName.HELP_DISPLAYED,
+      { command: "tools" }
+    );
   });
 
   it("tracks unknown commands and falls back to help", async () => {
@@ -257,6 +381,52 @@ describe(runCli, () => {
     expect(context.telemetry.shutdown).toHaveBeenCalledOnce();
   });
 
+  it("tracks unknown nested commands and falls back to scoped help", async () => {
+    const migrateCommand: CliCommand = {
+      action: vi.fn(() => Promise.resolve()),
+      description: "Run migrations",
+      hint: "Migrate",
+      label: "Migrate",
+      name: "migrate",
+    };
+    const toolsCommand: CliCommand = {
+      description: "Developer tools",
+      hint: "Tools",
+      label: "Tools",
+      name: "tools",
+      subcommands: [migrateCommand],
+    };
+    const context = createContext({
+      commandArgs: ["missing"],
+      commandName: "tools",
+    });
+    mocks.createCliContext.mockResolvedValue(context);
+
+    await runCli({
+      appName: "test-cli",
+      commands: [toolsCommand],
+      packageInfo,
+      rawArgs: ["tools", "missing"],
+    });
+
+    expect(context.telemetry.trackEvent).toHaveBeenCalledWith(
+      TelemetryEventName.COMMAND_UNKNOWN,
+      { command: "tools missing" }
+    );
+    expect(mocks.showHelpMenu).toHaveBeenCalledWith(
+      context,
+      {
+        appName: "test-cli",
+        commandPath: ["tools"],
+        docsUrl: undefined,
+        version: "1.2.3",
+      },
+      [migrateCommand],
+      expect.any(Array)
+    );
+    expect(context.telemetry.shutdown).toHaveBeenCalledOnce();
+  });
+
   it("supports custom no-command behavior", async () => {
     const context = createContext();
     const action = vi.fn(() => Promise.resolve());
@@ -271,6 +441,8 @@ describe(runCli, () => {
     });
 
     expect(action).toHaveBeenCalledWith({
+      commandNames: [],
+      commandPath: [],
       commands: [],
       context,
       packageInfo,
@@ -312,7 +484,12 @@ describe(runCli, () => {
       }
     );
     expect(context.telemetry.trackError).toHaveBeenCalledWith(error, "explode");
-    expect(onError).toHaveBeenCalledWith({ command, context, error });
+    expect(onError).toHaveBeenCalledWith({
+      command,
+      commandNames: ["explode"],
+      context,
+      error,
+    });
     expect(context.telemetry.shutdown).toHaveBeenCalledOnce();
     expect(context.error.handleError).toHaveBeenCalledWith(error, "explode");
     expect(
