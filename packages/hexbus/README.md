@@ -27,7 +27,7 @@ Opinionated CLI framework for Inth apps. `hexbus` gives Inth app CLIs a small, t
 - Typed `CliContext` creation with command metadata, parsed flags, project root, package manager detection, framework detection, file-system helpers, config loading, telemetry, and confirmation prompts.
 - Shared argument parser and global flags for help, version, logging, color, config, confirmation, telemetry, and force behavior.
 - Command-local argument parsing for validated per-command flags, defaults, aliases, negated booleans, and positionals.
-- Consistent logger, prompt helpers, spinner, intro, help, and error rendering built on top of Hexbus' pinned `@clack/prompts`.
+- Consistent logger, prompt helpers, spinner, intro, help, color, figlet, and error rendering built on Hexbus' pinned terminal UX dependencies.
 - Configurable error catalog and best-effort telemetry hooks that Inth app CLIs can extend or disable.
 - Project, framework, package manager, install source, and registry update helpers for better CLI guidance.
 - Test helpers for creating lightweight contexts without standing up a full CLI invocation.
@@ -101,7 +101,7 @@ pnpm add hexbus
 4. Use `parseCliArgs` when you only need normalized command names, command args, and global flags.
 5. Use `createCliContext` when command execution needs the full runtime context but the entrypoint owns routing.
 6. Use `CliError`, `extendErrorCatalog`, and `withErrorHandling` to keep app-specific failures consistent with shared CLI output.
-7. Use `displayIntro`, `showHelpMenu`, `promptSelect`, `promptMultiselect`, `promptText`, `promptConfirm`, `createSpinner`, and `createCliLogger` for consistent terminal UX.
+7. Use `displayIntro`, `showHelpMenu`, `promptSelect`, `promptMultiselect`, `promptText`, `promptConfirm`, `createSpinner`, `createCliLogger`, `color`, and `renderFiglet` for consistent terminal UX without adding duplicate terminal dependencies.
 8. Use `isVersionRequest`, `printVersionInfo`, and `startBackgroundUpdateCheck` directly when a CLI needs custom version or update-check flow.
 
 ## Dispatch And Selection
@@ -251,7 +251,7 @@ The helper throws `CliError` for missing values, unknown options, missing requir
 - Dispatch: `dispatchCommand`, `resolveCommandRoute`, `selectCommand`, `findCommand`, `CommandRoute`, `DispatchCommandResult`, `SelectCommandResult`
 - Context: `createCliContext`, `createTestContext`, `CreateContextOptions`
 - Parser: `parseCliArgs`, `parseCommandArgs`, `parseSubcommand`, `hasFlag`, `getFlagValue`, `globalFlags`
-- Terminal UX: `createCliLogger`, `promptSelect`, `promptMultiselect`, `promptText`, `promptConfirm`, `createPromptToolkit`, `createSpinner`, `withSpinner`, `displayIntro`, `showHelpMenu`
+- Terminal UX: `createCliLogger`, `color`, `createColors`, `renderFiglet`, `figlet`, `promptSelect`, `promptMultiselect`, `promptText`, `promptConfirm`, `createPromptToolkit`, `createSpinner`, `withSpinner`, `displayIntro`, `showHelpMenu`
 - Errors: `CliError`, `createErrorHandlers`, `extendErrorCatalog`, `withErrorHandling`
 - Detection: `detectProjectRoot`, `detectPackageManager`, `detectFramework`, `getInstallCommand`, `getRunCommand`, `getExecCommand`
 - Telemetry: `createTelemetry`, `createDisabledTelemetry`, `TelemetryEventName`

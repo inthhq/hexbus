@@ -55,6 +55,16 @@ export {
   type SelectCommandResult,
 } from "./dispatch";
 export {
+  type Color,
+  color,
+  type ColorFormatter,
+  type Colors,
+  type ColorSupportOptions,
+  createColors,
+  detectColorSupport,
+  isColorSupported,
+} from "./color";
+export {
   CliError,
   createErrorHandlers,
   DEFAULT_ERROR_CATALOG,
@@ -65,10 +75,10 @@ export {
   isCliError,
   withErrorHandling,
 } from "./errors";
+export { type Figlet, figlet, renderFiglet } from "./figlet";
 export { type ShowHelpMenuOptions, showHelpMenu } from "./help";
 export { type DisplayIntroOptions, displayIntro } from "./intro";
 export {
-  color,
   createCliLogger,
   formatLogMessage,
   formatStep,
