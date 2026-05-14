@@ -49,9 +49,21 @@ export const DEFAULT_ERROR_CATALOG = {
     code: "FLAG_VALUE_REQUIRED",
     message: "Flag requires a value",
   },
+  POSITIONAL_REQUIRED: {
+    code: "POSITIONAL_REQUIRED",
+    message: "Required positional argument is missing",
+  },
+  UNEXPECTED_POSITIONAL: {
+    code: "UNEXPECTED_POSITIONAL",
+    message: "Unexpected positional argument",
+  },
   UNKNOWN_ERROR: {
     code: "UNKNOWN_ERROR",
     message: "An unexpected error occurred",
+  },
+  UNKNOWN_OPTION: {
+    code: "UNKNOWN_OPTION",
+    message: "Unknown option",
   },
 } as const satisfies ErrorCatalog;
 

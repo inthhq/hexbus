@@ -10,6 +10,7 @@ Opinionated CLI framework for Inth apps. `hexbus` gives Inth app CLIs a small, t
 - [Installation](#installation)
 - [Usage](#usage)
 - [Dispatch And Selection](#dispatch-and-selection)
+- [Command-Local Args](#command-local-args)
 - [Global Flags](#global-flags)
 - [Support](#support)
 - [License](#license)
@@ -23,6 +24,7 @@ Opinionated CLI framework for Inth apps. `hexbus` gives Inth app CLIs a small, t
 - Shared `dispatchCommand` and `selectCommand` helpers for command lookup, unknown command handling, no-command behavior, and interactive command menus.
 - Typed `CliContext` creation with command metadata, parsed flags, project root, package manager detection, framework detection, file-system helpers, config loading, telemetry, and confirmation prompts.
 - Shared argument parser and global flags for help, version, logging, color, config, confirmation, telemetry, and force behavior.
+- Command-local argument parsing for validated per-command flags, defaults, aliases, negated booleans, and positionals.
 - Consistent logger, spinner, intro, help, and error rendering built on top of `@clack/prompts`.
 - Configurable error catalog and best-effort telemetry hooks that Inth app CLIs can extend or disable.
 - Project, framework, package manager, install source, and registry update helpers for better CLI guidance.
@@ -93,11 +95,12 @@ pnpm add hexbus
 
 1. Use `runCli` when a product CLI wants the standard lifecycle: `--version`, context creation, update hints, help, intro, command dispatch, hooks, telemetry shutdown, and error handling.
 2. Use `dispatchCommand` or `selectCommand` when the entrypoint owns lifecycle details but should not reimplement command lookup, unknown-command handling, no-command behavior, or interactive selection.
-3. Use `parseCliArgs` when you only need normalized command names, command args, and global flags.
-4. Use `createCliContext` when command execution needs the full runtime context but the entrypoint owns routing.
-5. Use `CliError`, `extendErrorCatalog`, and `withErrorHandling` to keep app-specific failures consistent with shared CLI output.
-6. Use `displayIntro`, `showHelpMenu`, `createSpinner`, and `createCliLogger` for consistent terminal UX.
-7. Use `isVersionRequest`, `printVersionInfo`, and `startBackgroundUpdateCheck` directly when a CLI needs custom version or update-check flow.
+3. Use `parseCommandArgs` inside command actions when you need command-local flags, defaults, and positional validation from `context.commandArgs`.
+4. Use `parseCliArgs` when you only need normalized command names, command args, and global flags.
+5. Use `createCliContext` when command execution needs the full runtime context but the entrypoint owns routing.
+6. Use `CliError`, `extendErrorCatalog`, and `withErrorHandling` to keep app-specific failures consistent with shared CLI output.
+7. Use `displayIntro`, `showHelpMenu`, `createSpinner`, and `createCliLogger` for consistent terminal UX.
+8. Use `isVersionRequest`, `printVersionInfo`, and `startBackgroundUpdateCheck` directly when a CLI needs custom version or update-check flow.
 
 ## Dispatch And Selection
 
@@ -122,6 +125,33 @@ await dispatchCommand(context, commands, {
 ```
 
 Use `selectCommand` directly when you only need the interactive menu primitive. It returns `selected`, `cancelled`, or `exited` so callers can choose whether to continue, render help, or call their own cancellation handler.
+
+## Command-Local Args
+
+`parseCliArgs` and `createCliContext` handle global flags and top-level command routing. Command actions can use `parseCommandArgs` for their own local flags and positionals after dispatch has selected a command.
+
+```ts
+import { parseCommandArgs } from "hexbus";
+
+const args = parseCommandArgs(context.commandArgs, {
+  positionals: [{ name: "name", required: true }],
+  flags: {
+    dev: { names: ["-D", "--dev"], type: "boolean", defaultValue: false },
+    git: { names: ["--git"], type: "string", valueName: "url" },
+    ref: { names: ["--ref"], type: "string", valueName: "ref" },
+    save: {
+      names: ["--save"],
+      type: "boolean",
+      defaultValue: true,
+      negatedName: "--no-save",
+    },
+  },
+});
+
+context.logger.info(`Adding ${args.positionals.name}`);
+```
+
+The helper throws `CliError` for missing values, unknown options, missing required positionals, and unexpected extra positionals.
 
 ## Global Flags
 
@@ -149,7 +179,7 @@ Use `selectCommand` directly when you only need the interactive menu primitive. 
 - Runner: `runCli`, `RunCliOptions`, `RunCliHooks`, `RunCliNoCommandBehavior`
 - Dispatch: `dispatchCommand`, `selectCommand`, `findCommand`, `DispatchCommandResult`, `SelectCommandResult`
 - Context: `createCliContext`, `createTestContext`, `CreateContextOptions`
-- Parser: `parseCliArgs`, `parseSubcommand`, `hasFlag`, `getFlagValue`, `globalFlags`
+- Parser: `parseCliArgs`, `parseCommandArgs`, `parseSubcommand`, `hasFlag`, `getFlagValue`, `globalFlags`
 - Terminal UX: `createCliLogger`, `createSpinner`, `withSpinner`, `displayIntro`, `showHelpMenu`
 - Errors: `CliError`, `createErrorHandlers`, `extendErrorCatalog`, `withErrorHandling`
 - Detection: `detectProjectRoot`, `detectPackageManager`, `detectFramework`, `getInstallCommand`, `getRunCommand`, `getExecCommand`

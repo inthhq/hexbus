@@ -10,6 +10,16 @@
  */
 
 export {
+  type BooleanCommandArgFlagSpec,
+  type CommandArgFlagSpec,
+  type CommandArgFlagSpecRecord,
+  type CommandArgPositionSpec,
+  parseCommandArgs,
+  type ParseCommandArgsResult,
+  type ParseCommandArgsSpec,
+  type StringCommandArgFlagSpec,
+} from "./command-args";
+export {
   type CreateContextOptions,
   createCliContext,
   createTestContext,
