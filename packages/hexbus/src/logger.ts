@@ -93,7 +93,7 @@ export function logMessage(
 
   switch (logLevel) {
     case "error": {
-      p.log.error(formattedMessage);
+      process.stderr.write(`${formattedMessage}\n`);
       break;
     }
     case "warn": {
