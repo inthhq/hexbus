@@ -1,5 +1,14 @@
 # hexbus
 
+## 0.3.0
+
+### Minor Changes
+
+- c49437d: Add first-class command-tree routing so `dispatchCommand` and `runCli` can execute nested `subcommands`, render scoped help, and pass leaf actions only the remaining args after the matched command path.
+- 3ecfa0b: Add `parseCommandArgs`, a command-local parser for per-command flags, aliases, defaults, negated booleans, and positional validation.
+- 11ff56e: Add `dispatchCommand`, `selectCommand`, and `findCommand` helpers for reusable command lookup, unknown-command handling, no-command behavior, and interactive command selection.
+- adcbac4: Add `runCli`, a shared CLI lifecycle runner that composes Hexbus primitives for version output, context creation, update checks, help, intro rendering, command dispatch, hooks, telemetry shutdown, and error handling.
+
 ## 0.2.0
 
 ### Minor Changes
