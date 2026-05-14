@@ -10,6 +10,16 @@
  */
 
 export {
+  type BooleanCommandArgFlagSpec,
+  type CommandArgFlagSpec,
+  type CommandArgFlagSpecRecord,
+  type CommandArgPositionSpec,
+  parseCommandArgs,
+  type ParseCommandArgsResult,
+  type ParseCommandArgsSpec,
+  type StringCommandArgFlagSpec,
+} from "./command-args";
+export {
   type CreateContextOptions,
   createCliContext,
   createTestContext,
@@ -23,6 +33,27 @@ export {
   getInstallCommand,
   getRunCommand,
 } from "./detection";
+export {
+  type CommandRoute,
+  dispatchCommand,
+  type DispatchCommandFailureHookOptions,
+  type DispatchCommandHookOptions,
+  type DispatchCommandHooks,
+  type DispatchCommandOptions,
+  type DispatchCommandResult,
+  type DispatchNoCommandBehavior,
+  type DispatchNoCommandOptions,
+  type DispatchSelectionCloseHookOptions,
+  type DispatchSelectionHookOptions,
+  type DispatchUnknownCommandBehavior,
+  type DispatchUnknownCommandOptions,
+  findCommand,
+  resolveCommandRoute,
+  type FindCommandOptions,
+  selectCommand,
+  type SelectCommandOptions,
+  type SelectCommandResult,
+} from "./dispatch";
 export {
   CliError,
   createErrorHandlers,

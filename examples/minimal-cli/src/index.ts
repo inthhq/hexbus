@@ -26,6 +26,9 @@ await runCli({
   intro: {
     tagline: "A tiny CLI built with hexbus.",
   },
+  noCommand: {
+    mode: "interactive",
+  },
   packageInfo: {
     name: "@inth/hexbus-example-minimal-cli",
     version: "0.1.0",
