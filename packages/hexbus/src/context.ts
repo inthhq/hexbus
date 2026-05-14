@@ -18,6 +18,7 @@ import {
   createTelemetry,
   TelemetryEventName,
 } from "./telemetry";
+import type { TelemetryOptions } from "./telemetry";
 import type {
   CliCommand,
   CliFlag,
@@ -80,7 +81,7 @@ export interface CreateContextOptions<TPackage extends string = string> {
   /**
    * Telemetry configuration for the context.
    */
-  telemetry?: {
+  telemetry?: Omit<TelemetryOptions, "appName" | "debug" | "disabled" | "logger"> & {
     /**
      * Disables telemetry regardless of command-line flags or environment
      * variables.
@@ -90,21 +91,6 @@ export interface CreateContextOptions<TPackage extends string = string> {
      * Emits queued telemetry payloads through the logger debug channel.
      */
     debug?: boolean;
-    /**
-     * HTTP endpoint that receives flushed telemetry batches.
-     */
-    endpoint?: string;
-    /**
-     * Environment variable prefix used to read telemetry opt-out flags.
-     *
-     * @remarks
-     * A prefix of `MY_CLI` reads `MY_CLI_TELEMETRY_DISABLED`.
-     */
-    envVarPrefix?: string;
-    /**
-     * Properties merged into every telemetry event created by this context.
-     */
-    defaultProperties?: Record<string, unknown>;
   };
   /**
    * Product package identifiers selected for framework-specific installs.
@@ -276,15 +262,27 @@ export async function createCliContext<TPackage extends string = string>(
       entryCommand: commandName ?? "interactive",
       framework: framework.framework ?? "unknown",
       frameworkVersion: framework.frameworkVersion ?? "unknown",
+      package: framework.pkg ?? "unknown",
       packageManager: packageManager.name,
+      packageManagerVersion: packageManager.version ?? "unknown",
       ...options.telemetry?.defaultProperties,
     },
     disabled:
       options.telemetry?.disabled === true ||
       parsedFlags["no-telemetry"] === true,
+    drainOptions: options.telemetry?.drainOptions,
     endpoint: options.telemetry?.endpoint,
     envVarPrefix: options.telemetry?.envVarPrefix ?? appName.toUpperCase(),
+    eventNameMap: options.telemetry?.eventNameMap,
+    fetch: options.telemetry?.fetch,
+    headers: options.telemetry?.headers,
     logger,
+    queueFileName: options.telemetry?.queueFileName,
+    sanitize: options.telemetry?.sanitize,
+    source: options.telemetry?.source,
+    stateFileName: options.telemetry?.stateFileName,
+    storageDir: options.telemetry?.storageDir,
+    timeoutMs: options.telemetry?.timeoutMs,
   });
 
   const errorHandlers = createErrorHandlers(logger, telemetry);

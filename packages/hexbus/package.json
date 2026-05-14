@@ -37,6 +37,7 @@
   "dependencies": {
     "@clack/prompts": "1.1.0",
     "c12": "3.3.3",
+    "evlog": "^2.17.0",
     "figlet": "1.11.0"
   },
   "devDependencies": {

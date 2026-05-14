@@ -37,6 +37,7 @@ function createTelemetry(): Telemetry {
   return {
     flush: vi.fn(() => Promise.resolve()),
     flushBackground: vi.fn(),
+    flushSync: vi.fn(),
     isDisabled: vi.fn(() => false),
     shutdown: vi.fn(() => Promise.resolve()),
     trackCommand: vi.fn(),
@@ -240,6 +241,53 @@ describe(runCli, () => {
       { command: "hello" }
     );
     expect(context.telemetry.shutdown).toHaveBeenCalledOnce();
+  });
+
+  it("passes the same telemetry instance through context, hooks, and command actions", async () => {
+    const action = vi.fn(() => Promise.resolve());
+    const command: CliCommand = {
+      action,
+      description: "Share telemetry",
+      hint: "Share",
+      label: "Share",
+      name: "share",
+    };
+    const context = createContext({
+      commandName: "share",
+    });
+    const afterContext = vi.fn((baseContext: CliContext) => baseContext);
+    const beforeCommand = vi.fn();
+    const afterCommand = vi.fn();
+    mocks.createCliContext.mockResolvedValue(context);
+
+    await runCli({
+      appName: "test-cli",
+      commands: [command],
+      hooks: {
+        afterCommand,
+        afterContext,
+        beforeCommand,
+      },
+      packageInfo,
+      rawArgs: ["share"],
+    });
+
+    expect(afterContext).toHaveBeenCalledWith(
+      expect.objectContaining({ telemetry: context.telemetry })
+    );
+    expect(beforeCommand).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: expect.objectContaining({ telemetry: context.telemetry }),
+      })
+    );
+    expect(action).toHaveBeenCalledWith(
+      expect.objectContaining({ telemetry: context.telemetry })
+    );
+    expect(afterCommand).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: expect.objectContaining({ telemetry: context.telemetry }),
+      })
+    );
   });
 
   it("dispatches nested commands and tracks the command path", async () => {
