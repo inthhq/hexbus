@@ -142,6 +142,16 @@ describe("spawned fixture CLI", () => {
     expect(result.stdout).toContain("hello args: world,again");
   });
 
+  it("prints help and exits non-zero for an invalid command option", async () => {
+    const result = await runFixtureCli(["hello", "--unknown-option"]);
+
+    expect(result.timedOut).toBe(false);
+    expect(result.code).not.toBe(0);
+    expect(result.stderr).toContain("Unknown option");
+    expect(result.stdout).toContain("Usage:");
+    expect(result.stdout).toContain("Commands:");
+  });
+
   it("renders help for an unknown command using the current runner contract", async () => {
     const result = await runFixtureCli(["missing"]);
 

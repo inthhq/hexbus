@@ -53,6 +53,11 @@ export const DEFAULT_ERROR_CATALOG = {
     code: "UNKNOWN_ERROR",
     message: "An unexpected error occurred",
   },
+  UNKNOWN_OPTION: {
+    code: "UNKNOWN_OPTION",
+    hint: "Run --help to see available options",
+    message: "Unknown option",
+  },
 } as const satisfies ErrorCatalog;
 
 let activeCatalog: ErrorCatalog = { ...DEFAULT_ERROR_CATALOG };
