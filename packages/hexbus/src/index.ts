@@ -86,6 +86,24 @@ export {
   parseSubcommand,
 } from "./parser";
 export {
+  createPromptToolkit,
+  type CreatePromptToolkitContext,
+  type CreatePromptToolkitOptions,
+  type PromptCancelMode,
+  type PromptChoice,
+  promptConfirm,
+  type PromptConfirmOptions,
+  type PromptKind,
+  promptMultiselect,
+  type PromptMultiselectOptions,
+  promptSelect,
+  type PromptSelectOptions,
+  promptText,
+  type PromptTextOptions,
+  type PromptToolkit,
+  type PromptToolkitCancelMode,
+} from "./prompts";
+export {
   type RunCliCommandHookOptions,
   type RunCliErrorHookOptions,
   type RunCliHelpOptions,

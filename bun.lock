@@ -53,9 +53,8 @@
     },
     "packages/codemods": {
       "name": "@inth/hexbus-codemods",
-      "version": "0.1.0",
+      "version": "0.3.0",
       "dependencies": {
-        "@clack/prompts": "1.1.0",
         "hexbus": "workspace:*",
         "ts-morph": "27.0.2",
       },
@@ -66,7 +65,7 @@
     },
     "packages/hexbus": {
       "name": "hexbus",
-      "version": "0.1.0",
+      "version": "0.3.0",
       "dependencies": {
         "@clack/prompts": "1.1.0",
         "c12": "3.3.3",
@@ -80,7 +79,7 @@
     },
     "packages/skills": {
       "name": "@inth/hexbus-skills",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "devDependencies": {
         "@inth/typescript-config": "workspace:*",
         "@inth/vitest-config": "workspace:*",

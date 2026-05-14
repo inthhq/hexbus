@@ -1,8 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import * as p from "@clack/prompts";
-
+import { promptSelect } from "./prompts";
 import type {
   CliLogger,
   FrameworkDetectionResult,
@@ -82,6 +81,65 @@ async function readPackageJson(projectRoot: string) {
   };
 }
 
+function resolveFramework<TPackage extends string>(
+  deps: Record<string, string | undefined>,
+  packageMap: FrameworkPackageMap<TPackage>
+): Pick<
+  FrameworkDetectionResult<TPackage>,
+  "framework" | "frameworkVersion" | "pkg"
+> {
+  const hasReact = "react" in deps;
+
+  if ("next" in deps) {
+    return {
+      framework: "Next.js",
+      frameworkVersion: deps.next ?? null,
+      pkg: packageMap.next ?? packageMap.react ?? null,
+    };
+  }
+
+  if ("@remix-run/react" in deps) {
+    return {
+      framework: "Remix",
+      frameworkVersion: deps["@remix-run/react"] ?? null,
+      pkg: packageMap.react ?? null,
+    };
+  }
+
+  if ("@vitejs/plugin-react" in deps || "@vitejs/plugin-react-swc" in deps) {
+    return {
+      framework: "Vite + React",
+      frameworkVersion:
+        deps["@vitejs/plugin-react"] ??
+        deps["@vitejs/plugin-react-swc"] ??
+        null,
+      pkg: packageMap.react ?? null,
+    };
+  }
+
+  if ("gatsby" in deps) {
+    return {
+      framework: "Gatsby",
+      frameworkVersion: deps.gatsby ?? null,
+      pkg: packageMap.react ?? null,
+    };
+  }
+
+  if (hasReact) {
+    return {
+      framework: "React",
+      frameworkVersion: deps.react ?? null,
+      pkg: packageMap.react ?? null,
+    };
+  }
+
+  return {
+    framework: null,
+    frameworkVersion: null,
+    pkg: packageMap.core ?? null,
+  };
+}
+
 /**
  * Detects common frontend frameworks from project dependencies.
  *
@@ -113,39 +171,10 @@ export async function detectFramework<TPackage extends string = string>(
     const hasReact = "react" in deps;
     const reactVersion = hasReact ? deps.react : null;
     const tailwindVersion = deps.tailwindcss ?? null;
-    let framework: string | null = null;
-    let frameworkVersion: string | null = null;
-    let pkg: TPackage | null = hasReact ? (packageMap.react ?? null) : null;
-
-    if ("next" in deps) {
-      framework = "Next.js";
-      frameworkVersion = deps.next ?? null;
-      pkg = packageMap.next ?? packageMap.react ?? null;
-    } else if ("@remix-run/react" in deps) {
-      framework = "Remix";
-      frameworkVersion = deps["@remix-run/react"] ?? null;
-      pkg = packageMap.react ?? null;
-    } else if (
-      "@vitejs/plugin-react" in deps ||
-      "@vitejs/plugin-react-swc" in deps
-    ) {
-      framework = "Vite + React";
-      frameworkVersion =
-        deps["@vitejs/plugin-react"] ??
-        deps["@vitejs/plugin-react-swc"] ??
-        null;
-      pkg = packageMap.react ?? null;
-    } else if ("gatsby" in deps) {
-      framework = "Gatsby";
-      frameworkVersion = deps.gatsby ?? null;
-      pkg = packageMap.react ?? null;
-    } else if (hasReact) {
-      framework = "React";
-      frameworkVersion = reactVersion ?? null;
-      pkg = packageMap.react ?? null;
-    } else {
-      pkg = packageMap.core ?? null;
-    }
+    const { framework, frameworkVersion, pkg } = resolveFramework(
+      deps,
+      packageMap
+    );
 
     return {
       framework,
@@ -239,12 +268,11 @@ async function detectFromPackageJson(
   return null;
 }
 
-async function promptForPackageManager(
-  logger?: CliLogger
-): Promise<PackageManager> {
+function promptForPackageManager(logger?: CliLogger): Promise<PackageManager> {
   logger?.debug("Prompting user to select package manager");
 
-  const result = await p.select({
+  return promptSelect<PackageManager>({
+    cancelMessage: "Package manager selection cancelled",
     message: "Which package manager do you use?",
     options: [
       { hint: "Fast all-in-one toolkit", label: "bun", value: "bun" },
@@ -253,12 +281,6 @@ async function promptForPackageManager(
       { hint: "Default Node.js package manager", label: "npm", value: "npm" },
     ],
   });
-
-  if (p.isCancel(result)) {
-    throw new Error("Package manager selection cancelled");
-  }
-
-  return result as PackageManager;
 }
 
 /**

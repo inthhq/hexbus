@@ -1,5 +1,5 @@
-import * as p from "@clack/prompts";
 import type { CliContext } from "hexbus";
+import { promptMultiselect } from "hexbus";
 
 import type {
   CodemodDefinition,
@@ -71,7 +71,8 @@ export function logCodemodResult(
 async function chooseCodemods<TContext extends CliContext>(
   codemods: CodemodDefinition<TContext>[]
 ): Promise<CodemodDefinition<TContext>[]> {
-  const selected = await p.multiselect({
+  const selected = await promptMultiselect({
+    cancel: "silent",
     message: "Select codemods to run",
     options: codemods.map((codemod) => ({
       hint: codemod.hint,
@@ -81,7 +82,7 @@ async function chooseCodemods<TContext extends CliContext>(
     required: false,
   });
 
-  if (p.isCancel(selected)) {
+  if (!selected) {
     return [];
   }
 

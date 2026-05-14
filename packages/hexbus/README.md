@@ -10,6 +10,7 @@ Opinionated CLI framework for Inth apps. `hexbus` gives Inth app CLIs a small, t
 - [Installation](#installation)
 - [Usage](#usage)
 - [Dispatch And Selection](#dispatch-and-selection)
+- [Interactive Prompts](#interactive-prompts)
 - [Command Trees](#command-trees)
 - [Command-Local Args](#command-local-args)
 - [Global Flags](#global-flags)
@@ -26,7 +27,7 @@ Opinionated CLI framework for Inth apps. `hexbus` gives Inth app CLIs a small, t
 - Typed `CliContext` creation with command metadata, parsed flags, project root, package manager detection, framework detection, file-system helpers, config loading, telemetry, and confirmation prompts.
 - Shared argument parser and global flags for help, version, logging, color, config, confirmation, telemetry, and force behavior.
 - Command-local argument parsing for validated per-command flags, defaults, aliases, negated booleans, and positionals.
-- Consistent logger, spinner, intro, help, and error rendering built on top of `@clack/prompts`.
+- Consistent logger, prompt helpers, spinner, intro, help, and error rendering built on top of Hexbus' pinned `@clack/prompts`.
 - Configurable error catalog and best-effort telemetry hooks that Inth app CLIs can extend or disable.
 - Project, framework, package manager, install source, and registry update helpers for better CLI guidance.
 - Test helpers for creating lightweight contexts without standing up a full CLI invocation.
@@ -100,7 +101,7 @@ pnpm add hexbus
 4. Use `parseCliArgs` when you only need normalized command names, command args, and global flags.
 5. Use `createCliContext` when command execution needs the full runtime context but the entrypoint owns routing.
 6. Use `CliError`, `extendErrorCatalog`, and `withErrorHandling` to keep app-specific failures consistent with shared CLI output.
-7. Use `displayIntro`, `showHelpMenu`, `createSpinner`, and `createCliLogger` for consistent terminal UX.
+7. Use `displayIntro`, `showHelpMenu`, `promptSelect`, `promptMultiselect`, `promptText`, `promptConfirm`, `createSpinner`, and `createCliLogger` for consistent terminal UX.
 8. Use `isVersionRequest`, `printVersionInfo`, and `startBackgroundUpdateCheck` directly when a CLI needs custom version or update-check flow.
 
 ## Dispatch And Selection
@@ -126,6 +127,41 @@ await dispatchCommand(context, commands, {
 ```
 
 Use `selectCommand` directly when you only need the interactive menu primitive. It returns `selected`, `cancelled`, or `exited` so callers can choose whether to continue, render help, or call their own cancellation handler.
+
+## Interactive Prompts
+
+Hexbus exposes a small prompt API backed by the `@clack/prompts` version pinned inside `hexbus`. Product CLIs can use these helpers without depending on Clack directly, which keeps prompt behavior and cancellation handling consistent in one process.
+
+```ts
+import { promptMultiselect, promptText } from "hexbus";
+
+const projectName = await promptText({
+  message: "Project name",
+  stage: "onboarding.name",
+  telemetry: context.telemetry,
+});
+
+const features = await promptMultiselect({
+  cancel: "silent",
+  message: "Choose features",
+  options: [
+    { label: "Authentication", value: "auth" },
+    { label: "Billing", value: "billing" },
+  ],
+  stage: "onboarding.features",
+  telemetry: context.telemetry,
+});
+
+if (!features) {
+  context.error.handleCancel("Setup cancelled");
+}
+```
+
+The public prompt helpers are `promptSelect`, `promptMultiselect`, `promptText`, and `promptConfirm`. By default, cancelling a prompt throws `CliError("CANCELLED")`; pass `cancel: "silent"` to receive `undefined` and handle cancellation yourself. Each helper accepts optional `stage` and `telemetry` fields; when telemetry is enabled, Hexbus emits a `prompt_interaction` event with the prompt kind, stage, and `submitted` or `cancelled` outcome.
+
+`promptConfirm` always renders a prompt. Use `context.confirm(message)` inside command actions when `-y` or `--yes` should auto-confirm. For long-running work, continue to use `createSpinner` or `withSpinner`; those are the supported spinner wrappers.
+
+Prompt behavior is part of the Hexbus public API and follows Hexbus semver. Consumers migrating from direct Clack imports should replace `@clack/prompts` usage with these helpers and remove Clack from their own dependencies unless they need unsupported primitives.
 
 ## Command Trees
 
@@ -215,7 +251,7 @@ The helper throws `CliError` for missing values, unknown options, missing requir
 - Dispatch: `dispatchCommand`, `resolveCommandRoute`, `selectCommand`, `findCommand`, `CommandRoute`, `DispatchCommandResult`, `SelectCommandResult`
 - Context: `createCliContext`, `createTestContext`, `CreateContextOptions`
 - Parser: `parseCliArgs`, `parseCommandArgs`, `parseSubcommand`, `hasFlag`, `getFlagValue`, `globalFlags`
-- Terminal UX: `createCliLogger`, `createSpinner`, `withSpinner`, `displayIntro`, `showHelpMenu`
+- Terminal UX: `createCliLogger`, `promptSelect`, `promptMultiselect`, `promptText`, `promptConfirm`, `createPromptToolkit`, `createSpinner`, `withSpinner`, `displayIntro`, `showHelpMenu`
 - Errors: `CliError`, `createErrorHandlers`, `extendErrorCatalog`, `withErrorHandling`
 - Detection: `detectProjectRoot`, `detectPackageManager`, `detectFramework`, `getInstallCommand`, `getRunCommand`, `getExecCommand`
 - Telemetry: `createTelemetry`, `createDisabledTelemetry`, `TelemetryEventName`
