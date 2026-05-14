@@ -1,5 +1,11 @@
 # hexbus
 
+## 0.5.0
+
+### Minor Changes
+
+- 8f242bc: Export bundled color and figlet helpers so product CLIs can share Hexbus' terminal UX dependencies instead of installing duplicate styling and banner packages.
+
 ## 0.4.0
 
 ### Minor Changes
