@@ -7,10 +7,7 @@ import path from "node:path";
 import { createLogger, initLogger } from "evlog";
 import type { DrainContext, WideEvent } from "evlog";
 import { createDrainPipeline } from "evlog/pipeline";
-import type {
-  DrainPipelineOptions,
-  PipelineDrainFn,
-} from "evlog/pipeline";
+import type { DrainPipelineOptions, PipelineDrainFn } from "evlog/pipeline";
 
 import type { CliLogger, Telemetry } from "./types";
 
@@ -183,9 +180,9 @@ function isEnvDisabled(prefix: string): boolean {
 function isCi(): boolean {
   return Boolean(
     process.env.CI ||
-      process.env.GITHUB_ACTIONS ||
-      process.env.BUILDKITE ||
-      process.env.VERCEL
+    process.env.GITHUB_ACTIONS ||
+    process.env.BUILDKITE ||
+    process.env.VERCEL
   );
 }
 
@@ -377,8 +374,7 @@ class DurableTelemetry implements Telemetry {
           userDrainOptions?.batch?.intervalMs ?? DEFAULT_BATCH_INTERVAL_MS,
         size: userDrainOptions?.batch?.size ?? DEFAULT_BATCH_SIZE,
       },
-      maxBufferSize:
-        userDrainOptions?.maxBufferSize ?? DEFAULT_MAX_BUFFER_SIZE,
+      maxBufferSize: userDrainOptions?.maxBufferSize ?? DEFAULT_MAX_BUFFER_SIZE,
       onDropped: (events, error) => {
         onDropped?.(events, error);
         void this.persistDroppedEvents(events, error);
@@ -535,7 +531,8 @@ class DurableTelemetry implements Telemetry {
       drain: this.disabled ? undefined : this.drain,
       enabled: !this.disabled,
       env: {
-        environment: process.env.NODE_ENV ?? (isCi() ? "production" : "development"),
+        environment:
+          process.env.NODE_ENV ?? (isCi() ? "production" : "development"),
         service: this.source,
         version: cliVersion,
       },
@@ -605,7 +602,9 @@ class DurableTelemetry implements Telemetry {
       });
 
       if (!response.ok) {
-        throw new Error(`Telemetry ingest failed with status ${response.status}`);
+        throw new Error(
+          `Telemetry ingest failed with status ${response.status}`
+        );
       }
     } finally {
       clearTimeout(timeout);
@@ -632,7 +631,10 @@ class DurableTelemetry implements Telemetry {
         }
       } catch (queueError) {
         if (this.debug) {
-          this.logDebug("Failed to persist dropped telemetry events:", queueError);
+          this.logDebug(
+            "Failed to persist dropped telemetry events:",
+            queueError
+          );
         }
       }
     };
@@ -660,7 +662,9 @@ class DurableTelemetry implements Telemetry {
       await fs.unlink(this.queuePath).catch(() => {});
 
       if (this.debug) {
-        this.logDebug(`Replayed ${queuedEvents.length} queued telemetry event(s)`);
+        this.logDebug(
+          `Replayed ${queuedEvents.length} queued telemetry event(s)`
+        );
       }
     } catch (error) {
       if (this.debug) {
@@ -704,7 +708,10 @@ class DurableTelemetry implements Telemetry {
         const content = fsSync.readFileSync(this.statePath, "utf-8");
         const parsed = JSON.parse(content) as { installId?: string };
 
-        if (typeof parsed.installId === "string" && parsed.installId.length > 0) {
+        if (
+          typeof parsed.installId === "string" &&
+          parsed.installId.length > 0
+        ) {
           return {
             installId: parsed.installId,
             isFirstRun: false,
@@ -766,7 +773,8 @@ class DurableTelemetry implements Telemetry {
     return this.sanitizeProperties({
       cause,
       code:
-        typeof eventError.code === "string" || typeof eventError.code === "number"
+        typeof eventError.code === "string" ||
+        typeof eventError.code === "number"
           ? eventError.code
           : undefined,
       message: eventError.message,

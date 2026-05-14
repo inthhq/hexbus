@@ -81,7 +81,10 @@ export interface CreateContextOptions<TPackage extends string = string> {
   /**
    * Telemetry configuration for the context.
    */
-  telemetry?: Omit<TelemetryOptions, "appName" | "debug" | "disabled" | "logger"> & {
+  telemetry?: Omit<
+    TelemetryOptions,
+    "appName" | "debug" | "disabled" | "logger"
+  > & {
     /**
      * Disables telemetry regardless of command-line flags or environment
      * variables.
