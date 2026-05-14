@@ -2,7 +2,6 @@ import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import * as p from "@clack/prompts";
 import { loadConfig } from "c12";
 
 import {
@@ -13,6 +12,7 @@ import {
 import { CliError, createErrorHandlers } from "./errors";
 import { createCliLogger, validLogLevels } from "./logger";
 import { parseCliArgs } from "./parser";
+import { promptConfirm } from "./prompts";
 import {
   createDisabledTelemetry,
   createTelemetry,
@@ -321,11 +321,17 @@ export async function createCliContext<TPackage extends string = string>(
         return true;
       }
 
-      const result = await p.confirm({ initialValue, message });
-      if (p.isCancel(result)) {
+      const result = await promptConfirm({
+        cancel: "silent",
+        initialValue,
+        message,
+        telemetry,
+      });
+      if (result === undefined) {
         errorHandlers.handleCancel("Confirmation cancelled");
+        throw new CliError("CANCELLED");
       }
-      return result as boolean;
+      return result;
     },
     cwd,
     error: errorHandlers,

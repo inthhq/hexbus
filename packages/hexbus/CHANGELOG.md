@@ -1,5 +1,11 @@
 # hexbus
 
+## Unreleased
+
+### Minor Changes
+
+- Add public prompt helpers backed by Hexbus' pinned `@clack/prompts`, including select, multiselect, text, and confirm wrappers with consistent cancellation handling and optional prompt telemetry.
+
 ## 0.3.0
 
 ### Minor Changes

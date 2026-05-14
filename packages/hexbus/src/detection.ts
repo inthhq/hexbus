@@ -1,8 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import * as p from "@clack/prompts";
-
+import { promptSelect } from "./prompts";
 import type {
   CliLogger,
   FrameworkDetectionResult,
@@ -239,12 +238,11 @@ async function detectFromPackageJson(
   return null;
 }
 
-async function promptForPackageManager(
-  logger?: CliLogger
-): Promise<PackageManager> {
+function promptForPackageManager(logger?: CliLogger): Promise<PackageManager> {
   logger?.debug("Prompting user to select package manager");
 
-  const result = await p.select({
+  return promptSelect<PackageManager>({
+    cancelMessage: "Package manager selection cancelled",
     message: "Which package manager do you use?",
     options: [
       { hint: "Fast all-in-one toolkit", label: "bun", value: "bun" },
@@ -253,12 +251,6 @@ async function promptForPackageManager(
       { hint: "Default Node.js package manager", label: "npm", value: "npm" },
     ],
   });
-
-  if (p.isCancel(result)) {
-    throw new Error("Package manager selection cancelled");
-  }
-
-  return result as PackageManager;
 }
 
 /**

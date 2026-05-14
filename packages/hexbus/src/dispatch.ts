@@ -1,5 +1,4 @@
-import * as p from "@clack/prompts";
-
+import { promptSelect } from "./prompts";
 import type { CliCommand, CliContext } from "./types";
 
 type MaybePromise<T> = T | Promise<T>;
@@ -637,12 +636,13 @@ export async function selectCommand<TContext extends CliContext>(
     return { type: "exited" };
   }
 
-  const result = await p.select({
+  const result = await promptSelect({
+    cancel: "silent",
     message: options.message ?? "Select a command",
     options: promptOptions,
   });
 
-  if (p.isCancel(result)) {
+  if (result === undefined) {
     return { type: "cancelled" };
   }
 

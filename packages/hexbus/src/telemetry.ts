@@ -57,6 +57,7 @@ export const TelemetryEventName = {
   HELP_DISPLAYED: "help_displayed",
   INTERACTIVE_MENU_EXITED: "interactive_menu_exited",
   INTERACTIVE_MENU_OPENED: "interactive_menu_opened",
+  PROMPT_INTERACTION: "prompt_interaction",
   VERSION_DISPLAYED: "version_displayed",
 } as const;
 
