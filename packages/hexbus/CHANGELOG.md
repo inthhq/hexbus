@@ -1,5 +1,13 @@
 # hexbus
 
+## 0.4.0
+
+### Minor Changes
+
+- 8556951: Expose public prompt helpers backed by Hexbus' pinned `@clack/prompts`, with consistent cancellation handling and optional prompt telemetry.
+
+  Remove the codemods package's direct `@clack/prompts` dependency by using the new Hexbus multiselect wrapper.
+
 ## Unreleased
 
 ### Minor Changes

@@ -1,6 +1,6 @@
 {
   "name": "hexbus",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Opinionated CLI framework for Inth apps.",
   "homepage": "https://github.com/inthhq/hexbus/tree/main/packages/hexbus",
   "license": "Apache-2.0",
