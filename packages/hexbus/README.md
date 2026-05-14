@@ -10,6 +10,7 @@ Opinionated CLI framework for Inth apps. `hexbus` gives Inth app CLIs a small, t
 - [Installation](#installation)
 - [Usage](#usage)
 - [Dispatch And Selection](#dispatch-and-selection)
+- [Command Trees](#command-trees)
 - [Command-Local Args](#command-local-args)
 - [Global Flags](#global-flags)
 - [Support](#support)
@@ -21,7 +22,7 @@ Opinionated CLI framework for Inth apps. `hexbus` gives Inth app CLIs a small, t
 ## Key Features
 
 - `runCli` lifecycle runner for package metadata, version output, context creation, update hints, help, intro, command dispatch, hooks, telemetry flush, and shutdown.
-- Shared `dispatchCommand` and `selectCommand` helpers for command lookup, unknown command handling, no-command behavior, and interactive command menus.
+- Shared `dispatchCommand`, `resolveCommandRoute`, and `selectCommand` helpers for command lookup, command-tree routing, unknown command handling, no-command behavior, and interactive command menus.
 - Typed `CliContext` creation with command metadata, parsed flags, project root, package manager detection, framework detection, file-system helpers, config loading, telemetry, and confirmation prompts.
 - Shared argument parser and global flags for help, version, logging, color, config, confirmation, telemetry, and force behavior.
 - Command-local argument parsing for validated per-command flags, defaults, aliases, negated booleans, and positionals.
@@ -94,7 +95,7 @@ pnpm add hexbus
 ## Usage
 
 1. Use `runCli` when a product CLI wants the standard lifecycle: `--version`, context creation, update hints, help, intro, command dispatch, hooks, telemetry shutdown, and error handling.
-2. Use `dispatchCommand` or `selectCommand` when the entrypoint owns lifecycle details but should not reimplement command lookup, unknown-command handling, no-command behavior, or interactive selection.
+2. Use `dispatchCommand`, `resolveCommandRoute`, or `selectCommand` when the entrypoint owns lifecycle details but should not reimplement command lookup, command-tree routing, unknown-command handling, no-command behavior, or interactive selection.
 3. Use `parseCommandArgs` inside command actions when you need command-local flags, defaults, and positional validation from `context.commandArgs`.
 4. Use `parseCliArgs` when you only need normalized command names, command args, and global flags.
 5. Use `createCliContext` when command execution needs the full runtime context but the entrypoint owns routing.
@@ -126,9 +127,43 @@ await dispatchCommand(context, commands, {
 
 Use `selectCommand` directly when you only need the interactive menu primitive. It returns `selected`, `cancelled`, or `exited` so callers can choose whether to continue, render help, or call their own cancellation handler.
 
+## Command Trees
+
+Commands can declare nested `subcommands`. `dispatchCommand` and `runCli` resolve the deepest matching route and pass the leaf action a context whose `commandArgs` only contain the remaining args after the command path.
+
+```ts
+import { runCli, type CliCommand } from "hexbus";
+
+const commands: CliCommand[] = [
+  {
+    name: "self-host",
+    label: "Self-host",
+    hint: "Manage self-hosted installs",
+    description: "Manage self-hosted installs.",
+    subcommands: [
+      {
+        name: "migrate",
+        label: "Migrate",
+        hint: "Run migrations",
+        description: "Run self-hosted migrations.",
+        async action(context) {
+          context.logger.info(
+            `Remaining args: ${context.commandArgs.join(",")}`
+          );
+        },
+      },
+    ],
+  },
+];
+
+await runCli({ appName: "my-cli", commands, packageInfo });
+```
+
+For `my-cli self-host migrate prod`, the `migrate` action receives `["prod"]`. For `my-cli self-host --help` or `my-cli self-host missing`, help is scoped to the `self-host` subcommands. Hidden subcommands still resolve when invoked directly but are excluded from help and interactive menus by default.
+
 ## Command-Local Args
 
-`parseCliArgs` and `createCliContext` handle global flags and top-level command routing. Command actions can use `parseCommandArgs` for their own local flags and positionals after dispatch has selected a command.
+`parseCliArgs` and `createCliContext` handle global flags and top-level command routing. Command actions can use `parseCommandArgs` for their own local flags and positionals after dispatch has selected a flat command or command-tree leaf.
 
 ```ts
 import { parseCommandArgs } from "hexbus";
@@ -177,7 +212,7 @@ The helper throws `CliError` for missing values, unknown options, missing requir
 ## Core Exports
 
 - Runner: `runCli`, `RunCliOptions`, `RunCliHooks`, `RunCliNoCommandBehavior`
-- Dispatch: `dispatchCommand`, `selectCommand`, `findCommand`, `DispatchCommandResult`, `SelectCommandResult`
+- Dispatch: `dispatchCommand`, `resolveCommandRoute`, `selectCommand`, `findCommand`, `CommandRoute`, `DispatchCommandResult`, `SelectCommandResult`
 - Context: `createCliContext`, `createTestContext`, `CreateContextOptions`
 - Parser: `parseCliArgs`, `parseCommandArgs`, `parseSubcommand`, `hasFlag`, `getFlagValue`, `globalFlags`
 - Terminal UX: `createCliLogger`, `createSpinner`, `withSpinner`, `displayIntro`, `showHelpMenu`

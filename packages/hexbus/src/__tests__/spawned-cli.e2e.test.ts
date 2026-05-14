@@ -124,6 +124,7 @@ describe("spawned fixture CLI", () => {
     expect(result.stdout).toContain("Commands:");
     expect(result.stdout).toContain("hello");
     expect(result.stdout).toContain("telemetry");
+    expect(result.stdout).toContain("tools");
   });
 
   it("renders help when no command is provided", async () => {
@@ -142,12 +143,40 @@ describe("spawned fixture CLI", () => {
     expect(result.stdout).toContain("hello args: world,again");
   });
 
+  it("executes a nested command with remaining args", async () => {
+    const result = await runFixtureCli(["tools", "migrate", "prod"]);
+
+    expectCleanExit(result);
+    expect(result.stdout).toContain("migrate target: prod");
+  });
+
+  it("renders scoped help for command groups", async () => {
+    const result = await runFixtureCli(["tools", "--help"]);
+
+    expectCleanExit(result);
+    expect(result.stdout).toContain("Usage:");
+    expect(result.stdout).toContain("fixture-cli tools <command> [options]");
+    expect(result.stdout).toContain("Commands:");
+    expect(result.stdout).toContain("migrate");
+    expect(result.stdout).not.toContain("Report telemetry state.");
+  });
+
   it("renders help for an unknown command using the current runner contract", async () => {
     const result = await runFixtureCli(["missing"]);
 
     expectCleanExit(result);
     expect(result.stdout).toContain("Usage:");
     expect(result.stdout).toContain("Commands:");
+  });
+
+  it("renders scoped help for an unknown nested command", async () => {
+    const result = await runFixtureCli(["tools", "missing"]);
+
+    expectCleanExit(result);
+    expect(result.stdout).toContain("Usage:");
+    expect(result.stdout).toContain("fixture-cli tools <command> [options]");
+    expect(result.stdout).toContain("migrate");
+    expect(result.stdout).not.toContain("Report telemetry state.");
   });
 
   it("supports telemetry-disabled execution", async () => {

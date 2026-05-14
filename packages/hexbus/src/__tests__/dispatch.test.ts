@@ -146,6 +146,8 @@ describe(dispatchCommand, () => {
 
     expect(result).toStrictEqual({
       command,
+      commandNames: ["hello"],
+      commandPath: [command],
       type: "command_executed",
     });
     expect(action).toHaveBeenCalledWith(context);
@@ -161,6 +163,8 @@ describe(dispatchCommand, () => {
 
     expect(result).toStrictEqual({
       command,
+      commandNames: ["internal"],
+      commandPath: [command],
       type: "command_executed",
     });
     expect(action).toHaveBeenCalledOnce();
@@ -178,6 +182,8 @@ describe(dispatchCommand, () => {
 
     const expectedOptions = {
       commandName: "missing",
+      commandNames: [],
+      commandPath: [],
       commands: [],
       context,
     };
@@ -185,6 +191,8 @@ describe(dispatchCommand, () => {
     expect(action).toHaveBeenCalledWith(expectedOptions);
     expect(result).toStrictEqual({
       commandName: "missing",
+      commandNames: [],
+      commandPath: [],
       type: "unknown_command",
     });
   });
@@ -199,8 +207,18 @@ describe(dispatchCommand, () => {
       noCommand: { action, mode: "help" },
     });
 
-    expect(onNoCommand).toHaveBeenCalledWith({ commands: [], context });
-    expect(action).toHaveBeenCalledWith({ commands: [], context });
+    expect(onNoCommand).toHaveBeenCalledWith({
+      commandNames: [],
+      commandPath: [],
+      commands: [],
+      context,
+    });
+    expect(action).toHaveBeenCalledWith({
+      commandNames: [],
+      commandPath: [],
+      commands: [],
+      context,
+    });
     expect(result).toStrictEqual({ type: "no_command_help" });
   });
 
@@ -212,7 +230,12 @@ describe(dispatchCommand, () => {
       noCommand: { action, mode: "custom" },
     });
 
-    expect(action).toHaveBeenCalledWith({ commands: [], context });
+    expect(action).toHaveBeenCalledWith({
+      commandNames: [],
+      commandPath: [],
+      commands: [],
+      context,
+    });
     expect(result).toStrictEqual({ type: "no_command_custom" });
   });
 
@@ -259,13 +282,22 @@ describe(dispatchCommand, () => {
         },
       ],
     });
-    expect(action).toHaveBeenCalledWith(context);
+    expect(action).toHaveBeenCalledWith(
+      expect.objectContaining({
+        commandArgs: [],
+        commandName: "visible",
+      })
+    );
     expect(onSelectionOpen).toHaveBeenCalledWith({
+      commandNames: [],
+      commandPath: [],
       commands: [visibleCommand, hiddenCommand],
       context,
       reason: "no_command",
     });
     expect(onSelectionClose).toHaveBeenCalledWith({
+      commandNames: [],
+      commandPath: [],
       commands: [visibleCommand, hiddenCommand],
       context,
       reason: "no_command",
@@ -276,6 +308,8 @@ describe(dispatchCommand, () => {
     });
     expect(result).toStrictEqual({
       command: visibleCommand,
+      commandNames: ["visible"],
+      commandPath: [visibleCommand],
       type: "command_executed",
     });
   });
@@ -318,11 +352,15 @@ describe(dispatchCommand, () => {
 
     expect(onCommandFailure).toHaveBeenCalledWith({
       command,
+      commandNames: ["explode"],
+      commandPath: [command],
       context,
       error,
     });
     expect(result).toStrictEqual({
       command,
+      commandNames: ["explode"],
+      commandPath: [command],
       error,
       type: "command_failed",
     });
@@ -339,6 +377,168 @@ describe(dispatchCommand, () => {
 
     expect(result).toStrictEqual({
       command,
+      commandNames: ["hello"],
+      commandPath: [command],
+      type: "command_selected",
+    });
+    expect(action).not.toHaveBeenCalled();
+  });
+
+  it("dispatches nested subcommands with only remaining args", async () => {
+    const action = vi.fn(() => Promise.resolve());
+    const migrateCommand = createCommand("migrate", action);
+    const toolsCommand = createCommand("tools", undefined, {
+      action: undefined,
+      subcommands: [migrateCommand],
+    });
+    const context = createTestContext({
+      commandArgs: ["migrate", "prod"],
+      commandName: "tools",
+    });
+
+    const result = await dispatchCommand(context, [toolsCommand]);
+
+    expect(result).toStrictEqual({
+      command: migrateCommand,
+      commandNames: ["tools", "migrate"],
+      commandPath: [toolsCommand, migrateCommand],
+      type: "command_executed",
+    });
+    expect(action).toHaveBeenCalledWith(
+      expect.objectContaining({
+        commandArgs: ["prod"],
+        commandName: "tools",
+      })
+    );
+  });
+
+  it("returns unknown command results for missing nested subcommands", async () => {
+    const migrateCommand = createCommand("migrate");
+    const toolsCommand = createCommand("tools", undefined, {
+      action: undefined,
+      subcommands: [migrateCommand],
+    });
+    const context = createTestContext({
+      commandArgs: ["missing"],
+      commandName: "tools",
+    });
+    const onUnknownCommand = vi.fn();
+    const action = vi.fn(() => Promise.resolve());
+
+    const result = await dispatchCommand(context, [toolsCommand], {
+      hooks: { onUnknownCommand },
+      unknownCommand: { action },
+    });
+
+    const expectedOptions = {
+      commandName: "missing",
+      commandNames: ["tools"],
+      commandPath: [toolsCommand],
+      commands: [migrateCommand],
+      context,
+    };
+    expect(onUnknownCommand).toHaveBeenCalledWith(expectedOptions);
+    expect(action).toHaveBeenCalledWith(expectedOptions);
+    expect(result).toStrictEqual({
+      commandName: "missing",
+      commandNames: ["tools"],
+      commandPath: [toolsCommand],
+      type: "unknown_command",
+    });
+  });
+
+  it("can select nested subcommands interactively", async () => {
+    const action = vi.fn(() => Promise.resolve());
+    const migrateCommand = createCommand("migrate", action);
+    const hiddenCommand = createCommand("internal", undefined, {
+      hidden: true,
+    });
+    const toolsCommand = createCommand("tools", undefined, {
+      action: undefined,
+      subcommands: [migrateCommand, hiddenCommand],
+    });
+    const context = createTestContext({ commandName: "tools" });
+    const onSelectionClose = vi.fn();
+    const onSelectionOpen = vi.fn();
+    promptMocks.select.mockResolvedValue("migrate");
+
+    const result = await dispatchCommand(context, [toolsCommand], {
+      hooks: {
+        onSelectionClose,
+        onSelectionOpen,
+      },
+      noCommand: {
+        mode: "interactive",
+      },
+    });
+
+    expect(promptMocks.select).toHaveBeenCalledWith({
+      message: "Select a command",
+      options: [
+        {
+          hint: "Run migrate",
+          label: "migrate",
+          value: "migrate",
+        },
+        {
+          hint: undefined,
+          label: "Exit",
+          value: "__hexbus_exit__",
+        },
+      ],
+    });
+    expect(onSelectionOpen).toHaveBeenCalledWith({
+      commandNames: ["tools"],
+      commandPath: [toolsCommand],
+      commands: [migrateCommand, hiddenCommand],
+      context,
+      reason: "subcommand_required",
+    });
+    expect(onSelectionClose).toHaveBeenCalledWith({
+      commandNames: ["tools"],
+      commandPath: [toolsCommand],
+      commands: [migrateCommand, hiddenCommand],
+      context,
+      reason: "subcommand_required",
+      result: {
+        command: migrateCommand,
+        type: "selected",
+      },
+    });
+    expect(result).toStrictEqual({
+      command: migrateCommand,
+      commandNames: ["tools", "migrate"],
+      commandPath: [toolsCommand, migrateCommand],
+      type: "command_executed",
+    });
+    expect(action).toHaveBeenCalledWith(
+      expect.objectContaining({
+        commandArgs: [],
+        commandName: "tools",
+      })
+    );
+  });
+
+  it("can select nested subcommands without executing actions", async () => {
+    const action = vi.fn(() => Promise.resolve());
+    const migrateCommand = createCommand("migrate", action);
+    const toolsCommand = createCommand("tools", undefined, {
+      action: undefined,
+      subcommands: [migrateCommand],
+    });
+    const context = createTestContext({
+      commandArgs: ["migrate"],
+      commandName: "tools",
+    });
+
+    const result = await dispatchCommand(context, [toolsCommand], {
+      execute: false,
+    });
+
+    expect(result).toStrictEqual({
+      command: migrateCommand,
+      commandNames: ["tools", "migrate"],
+      commandPath: [toolsCommand, migrateCommand],
       type: "command_selected",
     });
     expect(action).not.toHaveBeenCalled();
