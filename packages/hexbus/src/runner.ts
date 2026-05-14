@@ -1,5 +1,12 @@
 import { createCliContext } from "./context";
 import type { CreateContextOptions } from "./context";
+import { dispatchCommand } from "./dispatch";
+import type {
+  DispatchCommandResult,
+  DispatchNoCommandBehavior,
+  SelectCommandOptions,
+  SelectCommandResult,
+} from "./dispatch";
 import { CliError } from "./errors";
 import { showHelpMenu } from "./help";
 import type { ShowHelpMenuOptions } from "./help";
@@ -126,7 +133,7 @@ export type RunCliNoCommandBehavior<
   TContext extends CliContext<TPackage> = CliContext<TPackage>,
 > =
   | { mode?: "help" }
-  | { mode: "interactive" }
+  | { mode: "interactive"; selection?: SelectCommandOptions }
   | {
       action: (
         options: RunCliNoCommandOptions<TPackage, TContext>
@@ -300,38 +307,51 @@ function showRunnerHelp<
   });
 }
 
-async function runNoCommand<
+function createDispatchNoCommandBehavior<
   TPackage extends string,
   TContext extends CliContext<TPackage>,
 >(
-  context: TContext,
   options: RunCliOptions<TPackage, TContext>,
   rawArgs: string[]
-): Promise<void> {
+): DispatchNoCommandBehavior<TContext> {
   const behavior = options.noCommand ?? { mode: "help" as const };
 
   if (behavior.mode === "custom") {
-    await behavior.action({
-      commands: options.commands,
-      context,
-      packageInfo: options.packageInfo,
-      rawArgs,
-    });
-    return;
+    return {
+      action: ({ commands, context }) =>
+        behavior.action({
+          commands,
+          context,
+          packageInfo: options.packageInfo,
+          rawArgs,
+        }),
+      mode: "custom",
+    };
   }
 
   if (behavior.mode === "interactive") {
-    context.telemetry.trackEvent(TelemetryEventName.INTERACTIVE_MENU_OPENED, {
-      reason: "no_command",
-    });
-    showRunnerHelp(context, options);
-    context.telemetry.trackEvent(TelemetryEventName.INTERACTIVE_MENU_EXITED, {
-      reason: "no_dispatcher",
-    });
-    return;
+    return {
+      mode: "interactive",
+      selection: behavior.selection,
+    };
   }
 
-  showRunnerHelp(context, options);
+  return {
+    action: ({ context }) => showRunnerHelp(context, options),
+    mode: "help",
+  };
+}
+
+function getSelectionCloseReason<TContext extends CliContext>(
+  result: SelectCommandResult<TContext>
+): string {
+  if (result.type === "selected") {
+    return "selected_command";
+  }
+  if (result.type === "cancelled") {
+    return "cancelled";
+  }
+  return "exit_option";
 }
 
 type RunCliOutcome =
@@ -340,6 +360,8 @@ type RunCliOutcome =
   | "error"
   | "help"
   | "no_command"
+  | "selection_cancelled"
+  | "selection_exited"
   | "unknown_command";
 
 interface RunCliState<
@@ -395,58 +417,80 @@ function startRunnerUpdateCheck<
   }
 }
 
-async function runSelectedCommand<
+function dispatchRunnerCommand<
   TPackage extends string,
   TContext extends CliContext<TPackage>,
 >(
-  context: TContext,
-  command: CliCommand<TContext>,
-  options: RunCliOptions<TPackage, TContext>
-): Promise<void> {
-  if (options.intro !== false) {
-    await displayIntro(context, {
-      ...options.intro,
-      appName: options.appName,
-      version: options.packageInfo.version,
-    });
-  }
-
-  context.telemetry.trackCommand(
-    command.name,
-    context.commandArgs,
-    context.flags
-  );
-  await options.hooks?.beforeCommand?.({ command, context });
-  await command.action(context);
-  await options.hooks?.afterCommand?.({
-    command,
-    context,
-    result: undefined,
-  });
-  context.telemetry.trackEvent(TelemetryEventName.COMMAND_SUCCEEDED, {
-    command: command.name,
-  });
-}
-
-async function handleMissingCommand<
-  TPackage extends string,
-  TContext extends CliContext<TPackage>,
->(
-  context: TContext,
+  runnerContext: TContext,
   options: RunCliOptions<TPackage, TContext>,
-  rawArgs: string[],
-  state: RunCliState<TPackage, TContext>
-): Promise<void> {
-  state.outcome =
-    context.commandArgs.length > 0 ? "unknown_command" : "no_command";
+  rawArgs: string[]
+): Promise<DispatchCommandResult<TContext>> {
+  return dispatchCommand(runnerContext, options.commands, {
+    hooks: {
+      async onCommandStart({ command, context: commandContext }) {
+        if (options.intro !== false) {
+          await displayIntro(commandContext, {
+            ...options.intro,
+            appName: options.appName,
+            version: options.packageInfo.version,
+          });
+        }
 
-  if (state.outcome === "unknown_command") {
-    context.telemetry.trackEvent(TelemetryEventName.COMMAND_UNKNOWN, {
-      command: context.commandArgs[0],
-    });
-  }
-
-  await runNoCommand(context, options, rawArgs);
+        commandContext.telemetry.trackCommand(
+          command.name,
+          commandContext.commandArgs,
+          commandContext.flags
+        );
+        await options.hooks?.beforeCommand?.({
+          command,
+          context: commandContext,
+        });
+      },
+      async onCommandSuccess({ command, context: commandContext }) {
+        await options.hooks?.afterCommand?.({
+          command,
+          context: commandContext,
+          result: undefined,
+        });
+        commandContext.telemetry.trackEvent(
+          TelemetryEventName.COMMAND_SUCCEEDED,
+          {
+            command: command.name,
+          }
+        );
+      },
+      onSelectionClose({ context: commandContext, result }) {
+        commandContext.telemetry.trackEvent(
+          TelemetryEventName.INTERACTIVE_MENU_EXITED,
+          {
+            command: result.type === "selected" ? result.command.name : "none",
+            reason: getSelectionCloseReason(result),
+          }
+        );
+      },
+      onSelectionOpen({ context: commandContext }) {
+        commandContext.telemetry.trackEvent(
+          TelemetryEventName.INTERACTIVE_MENU_OPENED,
+          {
+            reason: "no_command",
+          }
+        );
+      },
+      onUnknownCommand({ commandName, context: commandContext }) {
+        commandContext.telemetry.trackEvent(
+          TelemetryEventName.COMMAND_UNKNOWN,
+          {
+            command: commandName,
+          }
+        );
+      },
+    },
+    noCommand: createDispatchNoCommandBehavior(options, rawArgs),
+    unknownCommand: {
+      action: ({ context: commandContext }) =>
+        showRunnerHelp(commandContext, options),
+    },
+  });
 }
 
 async function trackRunnerError<
@@ -481,6 +525,47 @@ async function trackRunnerError<
     context: state.context,
     error,
   });
+}
+
+async function applyDispatchResult<
+  TPackage extends string,
+  TContext extends CliContext<TPackage>,
+>(
+  result: DispatchCommandResult<TContext>,
+  options: RunCliOptions<TPackage, TContext>,
+  state: RunCliState<TPackage, TContext>
+): Promise<void> {
+  if (
+    result.type === "command_executed" ||
+    result.type === "command_selected"
+  ) {
+    state.selectedCommand = result.command;
+    state.outcome = "command";
+    return;
+  }
+
+  if (result.type === "command_failed") {
+    state.selectedCommand = result.command;
+    await trackRunnerError(result.error, options, state);
+    return;
+  }
+
+  if (result.type === "unknown_command") {
+    state.outcome = "unknown_command";
+    return;
+  }
+
+  if (result.type === "selection_cancelled") {
+    state.outcome = "selection_cancelled";
+    return;
+  }
+
+  if (result.type === "selection_exited") {
+    state.outcome = "selection_exited";
+    return;
+  }
+
+  state.outcome = "no_command";
 }
 
 async function shutdownRunnerTelemetry<
@@ -547,17 +632,8 @@ export async function runCli<
       return;
     }
 
-    state.selectedCommand = options.commands.find(
-      (command) => command.name === state.context?.commandName
-    );
-
-    if (!state.selectedCommand) {
-      await handleMissingCommand(state.context, options, rawArgs, state);
-      return;
-    }
-
-    await runSelectedCommand(state.context, state.selectedCommand, options);
-    state.outcome = "command";
+    const result = await dispatchRunnerCommand(state.context, options, rawArgs);
+    await applyDispatchResult(result, options, state);
   } catch (error) {
     await trackRunnerError(error, options, state);
   } finally {

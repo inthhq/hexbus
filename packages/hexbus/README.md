@@ -9,6 +9,7 @@ Opinionated CLI framework for Inth apps. `hexbus` gives Inth app CLIs a small, t
 - [Quick Start](#quick-start)
 - [Installation](#installation)
 - [Usage](#usage)
+- [Dispatch And Selection](#dispatch-and-selection)
 - [Global Flags](#global-flags)
 - [Support](#support)
 - [License](#license)
@@ -19,6 +20,7 @@ Opinionated CLI framework for Inth apps. `hexbus` gives Inth app CLIs a small, t
 ## Key Features
 
 - `runCli` lifecycle runner for package metadata, version output, context creation, update hints, help, intro, command dispatch, hooks, telemetry flush, and shutdown.
+- Shared `dispatchCommand` and `selectCommand` helpers for command lookup, unknown command handling, no-command behavior, and interactive command menus.
 - Typed `CliContext` creation with command metadata, parsed flags, project root, package manager detection, framework detection, file-system helpers, config loading, telemetry, and confirmation prompts.
 - Shared argument parser and global flags for help, version, logging, color, config, confirmation, telemetry, and force behavior.
 - Consistent logger, spinner, intro, help, and error rendering built on top of `@clack/prompts`.
@@ -67,6 +69,9 @@ await runCli({
   help: {
     docsUrl: "https://docs.example.com/my-cli",
   },
+  noCommand: {
+    mode: "interactive",
+  },
 });
 ```
 
@@ -87,11 +92,36 @@ pnpm add hexbus
 ## Usage
 
 1. Use `runCli` when a product CLI wants the standard lifecycle: `--version`, context creation, update hints, help, intro, command dispatch, hooks, telemetry shutdown, and error handling.
-2. Use `parseCliArgs` when you only need normalized command names, command args, and global flags.
-3. Use `createCliContext` when command execution needs the full runtime context but the entrypoint owns routing.
-4. Use `CliError`, `extendErrorCatalog`, and `withErrorHandling` to keep app-specific failures consistent with shared CLI output.
-5. Use `displayIntro`, `showHelpMenu`, `createSpinner`, and `createCliLogger` for consistent terminal UX.
-6. Use `isVersionRequest`, `printVersionInfo`, and `startBackgroundUpdateCheck` directly when a CLI needs custom version or update-check flow.
+2. Use `dispatchCommand` or `selectCommand` when the entrypoint owns lifecycle details but should not reimplement command lookup, unknown-command handling, no-command behavior, or interactive selection.
+3. Use `parseCliArgs` when you only need normalized command names, command args, and global flags.
+4. Use `createCliContext` when command execution needs the full runtime context but the entrypoint owns routing.
+5. Use `CliError`, `extendErrorCatalog`, and `withErrorHandling` to keep app-specific failures consistent with shared CLI output.
+6. Use `displayIntro`, `showHelpMenu`, `createSpinner`, and `createCliLogger` for consistent terminal UX.
+7. Use `isVersionRequest`, `printVersionInfo`, and `startBackgroundUpdateCheck` directly when a CLI needs custom version or update-check flow.
+
+## Dispatch And Selection
+
+`dispatchCommand` takes a parsed `CliContext` plus an explicit command table and returns a typed result. Direct command dispatch includes hidden commands by default, while interactive selection excludes hidden commands unless configured otherwise.
+
+```ts
+import { dispatchCommand, showHelpMenu } from "hexbus";
+
+await dispatchCommand(context, commands, {
+  noCommand: {
+    mode: "help",
+    action: ({ context }) =>
+      showHelpMenu(context, { appName: "my-cli", version }, commands, flags),
+  },
+  unknownCommand: {
+    action: ({ commandName, context }) => {
+      context.logger.warn(`Unknown command: ${commandName}`);
+      showHelpMenu(context, { appName: "my-cli", version }, commands, flags);
+    },
+  },
+});
+```
+
+Use `selectCommand` directly when you only need the interactive menu primitive. It returns `selected`, `cancelled`, or `exited` so callers can choose whether to continue, render help, or call their own cancellation handler.
 
 ## Global Flags
 
@@ -117,6 +147,7 @@ pnpm add hexbus
 ## Core Exports
 
 - Runner: `runCli`, `RunCliOptions`, `RunCliHooks`, `RunCliNoCommandBehavior`
+- Dispatch: `dispatchCommand`, `selectCommand`, `findCommand`, `DispatchCommandResult`, `SelectCommandResult`
 - Context: `createCliContext`, `createTestContext`, `CreateContextOptions`
 - Parser: `parseCliArgs`, `parseSubcommand`, `hasFlag`, `getFlagValue`, `globalFlags`
 - Terminal UX: `createCliLogger`, `createSpinner`, `withSpinner`, `displayIntro`, `showHelpMenu`

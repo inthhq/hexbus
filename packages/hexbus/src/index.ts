@@ -24,6 +24,25 @@ export {
   getRunCommand,
 } from "./detection";
 export {
+  dispatchCommand,
+  type DispatchCommandFailureHookOptions,
+  type DispatchCommandHookOptions,
+  type DispatchCommandHooks,
+  type DispatchCommandOptions,
+  type DispatchCommandResult,
+  type DispatchNoCommandBehavior,
+  type DispatchNoCommandOptions,
+  type DispatchSelectionCloseHookOptions,
+  type DispatchSelectionHookOptions,
+  type DispatchUnknownCommandBehavior,
+  type DispatchUnknownCommandOptions,
+  findCommand,
+  type FindCommandOptions,
+  selectCommand,
+  type SelectCommandOptions,
+  type SelectCommandResult,
+} from "./dispatch";
+export {
   CliError,
   createErrorHandlers,
   DEFAULT_ERROR_CATALOG,
