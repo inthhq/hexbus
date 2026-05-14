@@ -34,6 +34,7 @@ export {
   getRunCommand,
 } from "./detection";
 export {
+  type CommandRoute,
   dispatchCommand,
   type DispatchCommandFailureHookOptions,
   type DispatchCommandHookOptions,
@@ -47,6 +48,7 @@ export {
   type DispatchUnknownCommandBehavior,
   type DispatchUnknownCommandOptions,
   findCommand,
+  resolveCommandRoute,
   type FindCommandOptions,
   selectCommand,
   type SelectCommandOptions,

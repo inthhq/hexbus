@@ -71,8 +71,8 @@ export interface ParsedArgs {
 }
 
 /**
- * Defines a command that can be rendered in help output and executed with a
- * fully resolved CLI context.
+ * Defines a command or command group that can be rendered in help output and
+ * executed with a fully resolved CLI context.
  *
  * @remarks
  * Commands are intentionally data-first so product CLIs can build menus,
@@ -117,13 +117,14 @@ export interface CliCommand<TContext extends CliContext = CliContext> {
    * Command implementation.
    *
    * @remarks
-   * Throw `CliError` when possible so shared error handling can render
-   * catalog hints and documentation links.
+   * Command groups can omit `action` when they only exist to route to
+   * `subcommands`. Throw `CliError` when possible so shared error handling can
+   * render catalog hints and documentation links.
    */
-  action: (context: TContext) => Promise<void>;
+  action?: (context: TContext) => Promise<void>;
   /**
-   * Optional nested command list consumed by `parseSubcommand` and custom
-   * command routers.
+   * Optional nested command list consumed by shared dispatch, `parseSubcommand`,
+   * and custom command routers.
    */
   subcommands?: CliCommand<TContext>[];
   /**

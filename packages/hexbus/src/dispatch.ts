@@ -19,6 +19,48 @@ export interface FindCommandOptions {
 }
 
 /**
+ * Matched command tree route.
+ */
+export interface CommandRoute<TContext extends CliContext = CliContext> {
+  /**
+   * Deepest command matched by the route.
+   */
+  command: CliCommand<TContext>;
+  /**
+   * Command objects from the top-level command to the selected command.
+   */
+  commandPath: CliCommand<TContext>[];
+  /**
+   * Command names from the top-level command to the selected command.
+   */
+  commandNames: string[];
+  /**
+   * Positional args left after the command path has been consumed.
+   */
+  remainingArgs: string[];
+}
+
+interface UnknownCommandRoute<TContext extends CliContext = CliContext> {
+  commandName: string;
+  commandPath: CliCommand<TContext>[];
+  commandNames: string[];
+  commands: CliCommand<TContext>[];
+}
+
+type ResolveCommandRouteResult<TContext extends CliContext = CliContext> =
+  | {
+      route: CommandRoute<TContext>;
+      type: "matched";
+    }
+  | {
+      type: "unknown";
+      unknown: UnknownCommandRoute<TContext>;
+    }
+  | {
+      type: "none";
+    };
+
+/**
  * Options passed when dispatch reaches a registered command.
  */
 export interface DispatchCommandHookOptions<
@@ -32,6 +74,14 @@ export interface DispatchCommandHookOptions<
    * Command selected from the configured command list.
    */
   command: CliCommand<TContext>;
+  /**
+   * Command objects from the top-level command to the selected command.
+   */
+  commandPath: CliCommand<TContext>[];
+  /**
+   * Command names from the top-level command to the selected command.
+   */
+  commandNames: string[];
 }
 
 /**
@@ -62,10 +112,18 @@ export interface DispatchUnknownCommandOptions<
    */
   commands: CliCommand<TContext>[];
   /**
-   * Unknown command name read from `context.commandName` or the first command
-   * arg left by `parseCliArgs`.
+   * Unknown command name read from `context.commandName`, the first command arg
+   * left by `parseCliArgs`, or an unmatched nested subcommand segment.
    */
   commandName: string;
+  /**
+   * Matched parent command path before the unknown segment, if any.
+   */
+  commandPath: CliCommand<TContext>[];
+  /**
+   * Matched parent command names before the unknown segment, if any.
+   */
+  commandNames: string[];
 }
 
 /**
@@ -82,6 +140,14 @@ export interface DispatchNoCommandOptions<
    * Commands registered for this CLI.
    */
   commands: CliCommand<TContext>[];
+  /**
+   * Parent command path whose subcommands are being requested.
+   */
+  commandPath: CliCommand<TContext>[];
+  /**
+   * Parent command names whose subcommands are being requested.
+   */
+  commandNames: string[];
 }
 
 /**
@@ -93,7 +159,7 @@ export interface DispatchSelectionHookOptions<
   /**
    * Why command selection opened.
    */
-  reason: "no_command";
+  reason: "no_command" | "subcommand_required";
 }
 
 /**
@@ -303,19 +369,27 @@ export interface DispatchCommandOptions<
 export type DispatchCommandResult<TContext extends CliContext = CliContext> =
   | {
       command: CliCommand<TContext>;
+      commandPath: CliCommand<TContext>[];
+      commandNames: string[];
       type: "command_executed";
     }
   | {
       command: CliCommand<TContext>;
+      commandPath: CliCommand<TContext>[];
+      commandNames: string[];
       type: "command_selected";
     }
   | {
       command: CliCommand<TContext>;
+      commandPath: CliCommand<TContext>[];
+      commandNames: string[];
       error: unknown;
       type: "command_failed";
     }
   | {
       commandName: string;
+      commandPath: CliCommand<TContext>[];
+      commandNames: string[];
       type: "unknown_command";
     }
   | {
@@ -352,25 +426,34 @@ function getUnknownCommandName<TContext extends CliContext>(
   return typeof firstArg === "string" ? firstArg : undefined;
 }
 
-async function runCommand<TContext extends CliContext>(
+function getCommandNames<TContext extends CliContext>(
+  commandPath: CliCommand<TContext>[]
+): string[] {
+  return commandPath.map((command) => command.name);
+}
+
+function createRoutedContext<TContext extends CliContext>(
   context: TContext,
-  command: CliCommand<TContext>,
-  options: DispatchCommandOptions<TContext>
-): Promise<DispatchCommandResult<TContext>> {
-  try {
-    await options.hooks?.onCommandStart?.({ command, context });
+  route: CommandRoute<TContext>
+): TContext {
+  const [commandName] = route.commandNames;
+  const isSameContext =
+    context.commandName === commandName &&
+    context.commandArgs === route.remainingArgs;
 
-    if (options.execute === false) {
-      return { command, type: "command_selected" };
-    }
-
-    await command.action(context);
-    await options.hooks?.onCommandSuccess?.({ command, context });
-    return { command, type: "command_executed" };
-  } catch (error) {
-    await options.hooks?.onCommandFailure?.({ command, context, error });
-    return { command, error, type: "command_failed" };
+  if (isSameContext) {
+    return context;
   }
+
+  return {
+    ...context,
+    commandArgs: route.remainingArgs,
+    commandName,
+  };
+}
+
+function hasSubcommandToken(value: string | undefined): value is string {
+  return typeof value === "string" && !value.startsWith("-");
 }
 
 /**
@@ -394,6 +477,131 @@ export function findCommand<TContext extends CliContext>(
     (command) =>
       command.name === commandName && (includeHidden || !command.hidden)
   );
+}
+
+function resolveCommandRouteState<TContext extends CliContext>(
+  context: TContext,
+  commands: CliCommand<TContext>[]
+): ResolveCommandRouteResult<TContext> {
+  const command = findCommand(commands, context.commandName);
+
+  if (!command) {
+    const unknownCommandName = getUnknownCommandName(context);
+    if (!unknownCommandName) {
+      return { type: "none" };
+    }
+
+    return {
+      type: "unknown",
+      unknown: {
+        commandName: unknownCommandName,
+        commandNames: [],
+        commandPath: [],
+        commands,
+      },
+    };
+  }
+
+  const commandPath = [command];
+  let currentCommand = command;
+  let remainingArgs = context.commandArgs;
+
+  while (currentCommand.subcommands && currentCommand.subcommands.length > 0) {
+    const [nextArg] = remainingArgs;
+
+    if (!hasSubcommandToken(nextArg)) {
+      break;
+    }
+
+    const subcommand = findCommand(currentCommand.subcommands, nextArg);
+    if (!subcommand) {
+      return {
+        type: "unknown",
+        unknown: {
+          commandName: nextArg,
+          commandNames: getCommandNames(commandPath),
+          commandPath,
+          commands: currentCommand.subcommands,
+        },
+      };
+    }
+
+    commandPath.push(subcommand);
+    currentCommand = subcommand;
+    remainingArgs = remainingArgs.slice(1);
+  }
+
+  return {
+    route: {
+      command: currentCommand,
+      commandNames: getCommandNames(commandPath),
+      commandPath,
+      remainingArgs,
+    },
+    type: "matched",
+  };
+}
+
+async function runCommand<TContext extends CliContext>(
+  context: TContext,
+  route: CommandRoute<TContext>,
+  options: DispatchCommandOptions<TContext>
+): Promise<DispatchCommandResult<TContext>> {
+  const commandContext = createRoutedContext(context, route);
+  const { command, commandNames, commandPath } = route;
+  const { action } = command;
+
+  try {
+    await options.hooks?.onCommandStart?.({
+      command,
+      commandNames,
+      commandPath,
+      context: commandContext,
+    });
+
+    if (options.execute === false) {
+      return { command, commandNames, commandPath, type: "command_selected" };
+    }
+
+    if (!action) {
+      return { command, commandNames, commandPath, type: "command_selected" };
+    }
+
+    await action(commandContext);
+    await options.hooks?.onCommandSuccess?.({
+      command,
+      commandNames,
+      commandPath,
+      context: commandContext,
+    });
+    return { command, commandNames, commandPath, type: "command_executed" };
+  } catch (error) {
+    await options.hooks?.onCommandFailure?.({
+      command,
+      commandNames,
+      commandPath,
+      context: commandContext,
+      error,
+    });
+    return {
+      command,
+      commandNames,
+      commandPath,
+      error,
+      type: "command_failed",
+    };
+  }
+}
+
+/**
+ * Resolves the deepest matching command route for a parsed CLI context.
+ */
+export function resolveCommandRoute<TContext extends CliContext>(
+  context: TContext,
+  commands: CliCommand<TContext>[]
+): CommandRoute<TContext> | undefined {
+  const result = resolveCommandRouteState(context, commands);
+  return result.type === "matched" ? result.route : undefined;
 }
 
 /**
@@ -456,22 +664,34 @@ export async function selectCommand<TContext extends CliContext>(
 async function runNoCommand<TContext extends CliContext>(
   context: TContext,
   commands: CliCommand<TContext>[],
-  options: DispatchCommandOptions<TContext>
+  options: DispatchCommandOptions<TContext>,
+  commandPath: CliCommand<TContext>[] = [],
+  reason: DispatchSelectionHookOptions<TContext>["reason"] = "no_command"
 ): Promise<DispatchCommandResult<TContext>> {
-  await options.hooks?.onNoCommand?.({ commands, context });
+  const commandNames = getCommandNames(commandPath);
+  const noCommandOptions = {
+    commandNames,
+    commandPath,
+    commands,
+    context,
+  };
+
+  await options.hooks?.onNoCommand?.(noCommandOptions);
 
   const behavior = options.noCommand ?? { mode: "help" as const };
 
   if (behavior.mode === "custom") {
-    await behavior.action({ commands, context });
+    await behavior.action(noCommandOptions);
     return { type: "no_command_custom" };
   }
 
   if (behavior.mode === "interactive") {
     await options.hooks?.onSelectionOpen?.({
+      commandNames,
+      commandPath,
       commands,
       context,
-      reason: "no_command",
+      reason,
     });
     const selection = await selectCommand(
       context,
@@ -479,9 +699,11 @@ async function runNoCommand<TContext extends CliContext>(
       behavior.selection
     );
     await options.hooks?.onSelectionClose?.({
+      commandNames,
+      commandPath,
       commands,
       context,
-      reason: "no_command",
+      reason,
       result: selection,
     });
 
@@ -493,10 +715,27 @@ async function runNoCommand<TContext extends CliContext>(
       return { type: "selection_exited" };
     }
 
-    return runCommand(context, selection.command, options);
+    const selectedRoute = {
+      command: selection.command,
+      commandNames: [...commandNames, selection.command.name],
+      commandPath: [...commandPath, selection.command],
+      remainingArgs: [],
+    };
+
+    if (!selection.command.action) {
+      return runNoCommand(
+        createRoutedContext(context, selectedRoute),
+        selection.command.subcommands ?? [],
+        options,
+        selectedRoute.commandPath,
+        "subcommand_required"
+      );
+    }
+
+    return runCommand(context, selectedRoute, options);
   }
 
-  await behavior.action?.({ commands, context });
+  await behavior.action?.(noCommandOptions);
   return { type: "no_command_help" };
 }
 
@@ -508,25 +747,41 @@ export async function dispatchCommand<TContext extends CliContext>(
   commands: CliCommand<TContext>[],
   options: DispatchCommandOptions<TContext> = {}
 ): Promise<DispatchCommandResult<TContext>> {
-  const command = findCommand(commands, context.commandName);
-  if (command) {
-    return runCommand(context, command, options);
+  const routeResult = resolveCommandRouteState(context, commands);
+  if (routeResult.type === "matched") {
+    if (!routeResult.route.command.action) {
+      return runNoCommand(
+        createRoutedContext(context, routeResult.route),
+        routeResult.route.command.subcommands ?? [],
+        options,
+        routeResult.route.commandPath,
+        "subcommand_required"
+      );
+    }
+
+    return runCommand(context, routeResult.route, options);
   }
 
-  const unknownCommandName = getUnknownCommandName(context);
-  if (unknownCommandName) {
+  if (routeResult.type === "unknown") {
+    const { unknown } = routeResult;
     await options.hooks?.onUnknownCommand?.({
-      commandName: unknownCommandName,
-      commands,
+      commandName: unknown.commandName,
+      commandNames: unknown.commandNames,
+      commandPath: unknown.commandPath,
+      commands: unknown.commands,
       context,
     });
     await options.unknownCommand?.action?.({
-      commandName: unknownCommandName,
-      commands,
+      commandName: unknown.commandName,
+      commandNames: unknown.commandNames,
+      commandPath: unknown.commandPath,
+      commands: unknown.commands,
       context,
     });
     return {
-      commandName: unknownCommandName,
+      commandName: unknown.commandName,
+      commandNames: unknown.commandNames,
+      commandPath: unknown.commandPath,
       type: "unknown_command",
     };
   }
