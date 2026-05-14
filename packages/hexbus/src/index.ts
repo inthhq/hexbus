@@ -54,6 +54,17 @@ export {
   parseCliArgs,
   parseSubcommand,
 } from "./parser";
+export {
+  type RunCliCommandHookOptions,
+  type RunCliErrorHookOptions,
+  type RunCliHelpOptions,
+  type RunCliHooks,
+  type RunCliNoCommandBehavior,
+  type RunCliNoCommandOptions,
+  type RunCliOptions,
+  type RunCliUpdateCheckOptions,
+  runCli,
+} from "./runner";
 export { createSpinner, type Spinner, withSpinner } from "./spinner";
 export {
   createDisabledTelemetry,

@@ -18,6 +18,7 @@ Opinionated CLI framework for Inth apps. `hexbus` gives Inth app CLIs a small, t
 
 ## Key Features
 
+- `runCli` lifecycle runner for package metadata, version output, context creation, update hints, help, intro, command dispatch, hooks, telemetry flush, and shutdown.
 - Typed `CliContext` creation with command metadata, parsed flags, project root, package manager detection, framework detection, file-system helpers, config loading, telemetry, and confirmation prompts.
 - Shared argument parser and global flags for help, version, logging, color, config, confirmation, telemetry, and force behavior.
 - Consistent logger, spinner, intro, help, and error rendering built on top of `@clack/prompts`.
@@ -33,15 +34,10 @@ Opinionated CLI framework for Inth apps. `hexbus` gives Inth app CLIs a small, t
 
 ## Quick Start
 
-Define command metadata, create a context from `process.argv`, then route to the selected command:
+Define command metadata, then let `runCli` own the standard invocation lifecycle:
 
 ```ts
-import {
-  createCliContext,
-  showHelpMenu,
-  globalFlags,
-  type CliCommand,
-} from "hexbus";
+import { runCli, type CliCommand } from "hexbus";
 
 const commands: CliCommand[] = [
   {
@@ -55,25 +51,23 @@ const commands: CliCommand[] = [
   },
 ];
 
-const context = await createCliContext({
-  rawArgs: process.argv.slice(2),
-  commands,
+await runCli({
   appName: "my-cli",
+  commands,
+  packageInfo: {
+    name: "@acme/my-cli",
+    version: "0.1.0",
+  },
+  context: {
+    configName: "my-cli",
+  },
+  intro: {
+    tagline: "Project automation for Acme apps.",
+  },
+  help: {
+    docsUrl: "https://docs.example.com/my-cli",
+  },
 });
-
-if (context.flags.help) {
-  showHelpMenu(
-    context,
-    { appName: "my-cli", version: "0.1.0" },
-    commands,
-    globalFlags
-  );
-  process.exit(0);
-}
-
-const command =
-  commands.find((item) => item.name === context.commandName) ?? commands[0];
-await command.action(context);
 ```
 
 ## Installation
@@ -92,11 +86,12 @@ pnpm add hexbus
 
 ## Usage
 
-1. Use `parseCliArgs` when you only need normalized command names, command args, and global flags.
-2. Use `createCliContext` when command execution needs the full runtime context.
-3. Use `CliError`, `extendErrorCatalog`, and `withErrorHandling` to keep app-specific failures consistent with shared CLI output.
-4. Use `displayIntro`, `showHelpMenu`, `createSpinner`, and `createCliLogger` for consistent terminal UX.
-5. Use `isVersionRequest`, `printVersionInfo`, and `startBackgroundUpdateCheck` for fast `-v` / `--version` handling and install-source-aware update hints.
+1. Use `runCli` when a product CLI wants the standard lifecycle: `--version`, context creation, update hints, help, intro, command dispatch, hooks, telemetry shutdown, and error handling.
+2. Use `parseCliArgs` when you only need normalized command names, command args, and global flags.
+3. Use `createCliContext` when command execution needs the full runtime context but the entrypoint owns routing.
+4. Use `CliError`, `extendErrorCatalog`, and `withErrorHandling` to keep app-specific failures consistent with shared CLI output.
+5. Use `displayIntro`, `showHelpMenu`, `createSpinner`, and `createCliLogger` for consistent terminal UX.
+6. Use `isVersionRequest`, `printVersionInfo`, and `startBackgroundUpdateCheck` directly when a CLI needs custom version or update-check flow.
 
 ## Global Flags
 
@@ -121,6 +116,7 @@ pnpm add hexbus
 
 ## Core Exports
 
+- Runner: `runCli`, `RunCliOptions`, `RunCliHooks`, `RunCliNoCommandBehavior`
 - Context: `createCliContext`, `createTestContext`, `CreateContextOptions`
 - Parser: `parseCliArgs`, `parseSubcommand`, `hasFlag`, `getFlagValue`, `globalFlags`
 - Terminal UX: `createCliLogger`, `createSpinner`, `withSpinner`, `displayIntro`, `showHelpMenu`
@@ -137,4 +133,6 @@ Inth app CLIs can extend the generic context type when they attach additional se
 
 ## Update Checks
 
-`hexbus` supports fast version requests before full context creation. Use `isVersionRequest` and `printVersionInfo` for `-v` / `--version`, then call `startBackgroundUpdateCheck` during normal command execution to show cached update hints and refresh stale registry data in the background.
+`runCli` handles fast version requests before full context creation and starts background update checks during normal execution by default. Pass `updateCheck: false` to skip the background check, or provide update-check options such as `brewFormula`, `registryUrl`, or `cacheTtlMs`.
+
+Use `isVersionRequest`, `printVersionInfo`, and `startBackgroundUpdateCheck` directly when a CLI needs bespoke update behavior outside the shared runner.
