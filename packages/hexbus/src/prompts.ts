@@ -201,18 +201,11 @@ function shouldTrackTelemetry(telemetry: PromptTelemetry | undefined): boolean {
 function toClackOptions<TValue extends string>(
   options: PromptChoice<TValue>[]
 ): ClackSelectOption<TValue>[] {
-  const clackOptions = options.map((option) =>
-    option.hint === undefined
-      ? {
-          label: option.label,
-          value: option.value,
-        }
-      : {
-          hint: option.hint,
-          label: option.label,
-          value: option.value,
-        }
-  );
+  const clackOptions = options.map((option) => ({
+    label: option.label,
+    value: option.value,
+    ...(option.hint === undefined ? {} : { hint: option.hint }),
+  }));
   return clackOptions as ClackSelectOption<TValue>[];
 }
 
@@ -266,11 +259,12 @@ export async function promptSelect<TValue extends string = string>(
     message: options.message,
     options: toClackOptions(options.options),
   };
-  const result = await p.select(
-    options.initialValue === undefined
-      ? promptOptions
-      : { ...promptOptions, initialValue: options.initialValue }
-  );
+  const result = await p.select({
+    ...promptOptions,
+    ...(options.initialValue === undefined
+      ? {}
+      : { initialValue: options.initialValue }),
+  });
 
   if (p.isCancel(result)) {
     return handleCancelledPrompt<TValue>("select", options);
@@ -369,11 +363,12 @@ export async function promptConfirm(
   const promptOptions = {
     message: options.message,
   };
-  const result = await p.confirm(
-    options.initialValue === undefined
-      ? promptOptions
-      : { ...promptOptions, initialValue: options.initialValue }
-  );
+  const result = await p.confirm({
+    ...promptOptions,
+    ...(options.initialValue === undefined
+      ? {}
+      : { initialValue: options.initialValue }),
+  });
 
   if (p.isCancel(result)) {
     return handleCancelledPrompt<boolean>("confirm", options);
