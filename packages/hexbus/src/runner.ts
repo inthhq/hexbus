@@ -285,6 +285,14 @@ function normalizeError(error: unknown): Error {
   return error instanceof Error ? error : CliError.from(error);
 }
 
+function findUnknownCommandOption(context: CliContext): string | undefined {
+  if (!context.commandName) {
+    return undefined;
+  }
+
+  return context.commandArgs.find((arg) => /^-{1,2}[A-Za-z]/.test(arg));
+}
+
 function createHelpOptions(
   options: Pick<RunCliOptions, "appName" | "help" | "packageInfo">,
   commandNames: string[] = []
@@ -726,6 +734,12 @@ export async function runCli<
       state.outcome = "help";
       showScopedRunnerHelp(state.context, options);
       return;
+    }
+
+    const unknownOption = findUnknownCommandOption(state.context);
+    if (unknownOption) {
+      showRunnerHelp(state.context, options);
+      throw new CliError("UNKNOWN_OPTION", { details: unknownOption });
     }
 
     const result = await dispatchRunnerCommand(state.context, options, rawArgs);

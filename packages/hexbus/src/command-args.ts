@@ -137,6 +137,10 @@ interface FlagLookupEntry {
   spec: CommandArgFlagSpec;
 }
 
+function describeFlagLookupEntry(entry: FlagLookupEntry): string {
+  return entry.negated ? `${entry.key} (negated)` : entry.key;
+}
+
 function createParserError(
   code:
     | "FLAG_VALUE_REQUIRED"
@@ -153,6 +157,13 @@ function addFlagName(
   name: string,
   entry: FlagLookupEntry
 ): void {
+  const existing = lookup.get(name);
+  if (existing) {
+    throw new Error(
+      `Duplicate flag name "${name}" for ${describeFlagLookupEntry(entry)} conflicts with ${describeFlagLookupEntry(existing)}`
+    );
+  }
+
   lookup.set(name, entry);
 }
 
@@ -258,12 +269,14 @@ function assignFlagValue<TFlags extends CommandArgFlagSpecRecord>(
 }
 
 /**
- * Parses command-local flags and positionals from `context.commandArgs`.
+ * Parses command-local flags and positionals from the provided `args`.
  *
  * @remarks
  * This helper intentionally handles only command-local parsing. Top-level
  * command routing and global flags remain the responsibility of `parseCliArgs`
  * and `createCliContext`.
+ *
+ * @param args - Explicit array of CLI inputs to parse.
  */
 export function parseCommandArgs<
   const TFlags extends CommandArgFlagSpecRecord = Record<never, never>,

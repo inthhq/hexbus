@@ -3,21 +3,15 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import { parseCommandArgs } from "../command-args";
 import { CliError } from "../errors";
 
-function expectCliError(
-  action: () => unknown,
-  code: string,
-  details: string
-): void {
-  expect(action).toThrow(CliError);
-
+function captureCliError(action: () => unknown): CliError {
   try {
     action();
   } catch (error) {
     expect(error).toBeInstanceOf(CliError);
-    const cliError = error as CliError;
-    expect(cliError.code).toBe(code);
-    expect(cliError.context?.details).toBe(details);
+    return error as CliError;
   }
+
+  throw new Error("Expected action to throw CliError");
 }
 
 describe(parseCommandArgs, () => {
@@ -132,68 +126,107 @@ describe(parseCommandArgs, () => {
   });
 
   it("throws for missing required positionals", () => {
-    expectCliError(
-      () =>
-        parseCommandArgs([], {
-          positionals: [{ name: "name", required: true }],
-        } as const),
-      "POSITIONAL_REQUIRED",
-      "name"
+    const error = captureCliError(() =>
+      parseCommandArgs([], {
+        positionals: [{ name: "name", required: true }],
+      } as const)
     );
+
+    expect(error.code).toBe("POSITIONAL_REQUIRED");
+    expect(error.context?.details).toBe("name");
   });
 
   it("throws for unknown options", () => {
-    expectCliError(
-      () => parseCommandArgs(["--wat"], {}),
-      "UNKNOWN_OPTION",
-      "--wat"
-    );
+    const error = captureCliError(() => parseCommandArgs(["--wat"], {}));
+
+    expect(error.code).toBe("UNKNOWN_OPTION");
+    expect(error.context?.details).toBe("--wat");
   });
 
   it("throws for missing string flag values", () => {
-    expectCliError(
-      () =>
-        parseCommandArgs(["--git"], {
-          flags: {
-            git: {
-              names: ["--git"],
-              type: "string",
-            },
+    const error = captureCliError(() =>
+      parseCommandArgs(["--git"], {
+        flags: {
+          git: {
+            names: ["--git"],
+            type: "string",
           },
-        } as const),
-      "FLAG_VALUE_REQUIRED",
-      "--git"
+        },
+      } as const)
     );
+
+    expect(error.code).toBe("FLAG_VALUE_REQUIRED");
+    expect(error.context?.details).toBe("--git");
   });
 
   it("throws for string flag values followed by another known flag", () => {
-    expectCliError(
-      () =>
-        parseCommandArgs(["--git", "--dev"], {
-          flags: {
-            dev: {
-              names: ["--dev"],
-              type: "boolean",
-            },
-            git: {
-              names: ["--git"],
-              type: "string",
-            },
+    const error = captureCliError(() =>
+      parseCommandArgs(["--git", "--dev"], {
+        flags: {
+          dev: {
+            names: ["--dev"],
+            type: "boolean",
           },
-        } as const),
-      "FLAG_VALUE_REQUIRED",
-      "--git"
+          git: {
+            names: ["--git"],
+            type: "string",
+          },
+        },
+      } as const)
     );
+
+    expect(error.code).toBe("FLAG_VALUE_REQUIRED");
+    expect(error.context?.details).toBe("--git");
   });
 
   it("throws for unexpected extra positionals", () => {
-    expectCliError(
-      () =>
-        parseCommandArgs(["src/index.ts", "extra"], {
-          positionals: [{ name: "path" }],
-        } as const),
-      "UNEXPECTED_POSITIONAL",
-      "extra"
+    const error = captureCliError(() =>
+      parseCommandArgs(["src/index.ts", "extra"], {
+        positionals: [{ name: "path" }],
+      } as const)
+    );
+
+    expect(error.code).toBe("UNEXPECTED_POSITIONAL");
+    expect(error.context?.details).toBe("extra");
+  });
+
+  it("throws for duplicate flag aliases", () => {
+    expect(() =>
+      parseCommandArgs([], {
+        flags: {
+          debug: {
+            names: ["--dev"],
+            type: "boolean",
+          },
+          dev: {
+            names: ["--dev"],
+            type: "boolean",
+          },
+        },
+      } as const)
+    ).toThrow(
+      /Duplicate flag name "--dev" for (debug|dev) conflicts with (debug|dev)/
+    );
+  });
+
+  it("throws for duplicate negated flag names", () => {
+    expect(() =>
+      parseCommandArgs([], {
+        flags: {
+          cache: {
+            names: ["--cache"],
+            negatedName: "--no",
+            type: "boolean",
+          },
+          save: {
+            names: ["--save"],
+            negatedName: "--no",
+            type: "boolean",
+          },
+        },
+      } as const)
+    ).toThrow(
+      /Duplicate flag name "--no" for (cache|save) \(negated\) conflicts with (cache|save) \(negated\)/
     );
   });
 });

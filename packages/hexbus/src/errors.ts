@@ -63,6 +63,7 @@ export const DEFAULT_ERROR_CATALOG = {
   },
   UNKNOWN_OPTION: {
     code: "UNKNOWN_OPTION",
+    hint: "Run --help to see available options",
     message: "Unknown option",
   },
 } as const satisfies ErrorCatalog;
