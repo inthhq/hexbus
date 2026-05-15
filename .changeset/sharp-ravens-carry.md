@@ -1,4 +1,4 @@
-"hexbus": minor
+"hexbus": patch
 
 ---
 
