@@ -14,6 +14,7 @@ export {
   type CommandArgFlagSpec,
   type CommandArgFlagSpecRecord,
   type CommandArgPositionSpec,
+  type OptionalStringCommandArgFlagSpec,
   parseCommandArgs,
   type ParseCommandArgsResult,
   type ParseCommandArgsSpec,

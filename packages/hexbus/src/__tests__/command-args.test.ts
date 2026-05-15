@@ -125,6 +125,67 @@ describe(parseCommandArgs, () => {
     expect(args.flags.ref).toBe("-1");
   });
 
+  it("parses optional string flags with bare, equals, and next-arg values", () => {
+    const bare = parseCommandArgs(["--reinvestigate", "--limit", "1"], {
+      flags: {
+        limit: { names: ["--limit"], type: "string" },
+        reinvestigate: {
+          names: ["--reinvestigate"],
+          type: "optional-string",
+        },
+      },
+    } as const);
+    const equals = parseCommandArgs(["--reinvestigate=2"], {
+      flags: {
+        reinvestigate: {
+          names: ["--reinvestigate"],
+          type: "optional-string",
+        },
+      },
+    } as const);
+    const nextArg = parseCommandArgs(["--reinvestigate", "3"], {
+      flags: {
+        reinvestigate: {
+          names: ["--reinvestigate"],
+          type: "optional-string",
+        },
+      },
+    } as const);
+    const negativeNumber = parseCommandArgs(["--reinvestigate", "-1"], {
+      flags: {
+        reinvestigate: {
+          names: ["--reinvestigate"],
+          type: "optional-string",
+        },
+      },
+    } as const);
+
+    expect(bare.flags.limit).toBe("1");
+    expect(bare.flags.reinvestigate).toBe(true);
+    expect(equals.flags.reinvestigate).toBe("2");
+    expect(nextArg.flags.reinvestigate).toBe("3");
+    expect(negativeNumber.flags.reinvestigate).toBe("-1");
+    expectTypeOf(bare.flags.reinvestigate).toEqualTypeOf<
+      string | true | undefined
+    >();
+  });
+
+  it("leaves equals-form parsing opt-in for optional string flags", () => {
+    const error = captureCliError(() =>
+      parseCommandArgs(["--ref=main"], {
+        flags: {
+          ref: {
+            names: ["--ref"],
+            type: "string",
+          },
+        },
+      } as const)
+    );
+
+    expect(error.code).toBe("UNKNOWN_OPTION");
+    expect(error.context?.details).toBe("--ref=main");
+  });
+
   it("throws for missing required positionals", () => {
     const error = captureCliError(() =>
       parseCommandArgs([], {

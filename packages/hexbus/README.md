@@ -209,6 +209,11 @@ const args = parseCommandArgs(context.commandArgs, {
   flags: {
     dev: { names: ["-D", "--dev"], type: "boolean", defaultValue: false },
     git: { names: ["--git"], type: "string", valueName: "url" },
+    reinvestigate: {
+      names: ["--reinvestigate"],
+      type: "optional-string",
+      valueName: "n",
+    },
     ref: { names: ["--ref"], type: "string", valueName: "ref" },
     save: {
       names: ["--save"],
@@ -222,7 +227,7 @@ const args = parseCommandArgs(context.commandArgs, {
 context.logger.info(`Adding ${args.positionals.name}`);
 ```
 
-The helper throws `CliError` for missing values, unknown options, missing required positionals, and unexpected extra positionals.
+`optional-string` flags accept `--flag`, `--flag=value`, and `--flag value`, returning `true`, the provided string, or `undefined`. The helper throws `CliError` for missing required string values, unknown options, missing required positionals, and unexpected extra positionals.
 
 ## Global Flags
 

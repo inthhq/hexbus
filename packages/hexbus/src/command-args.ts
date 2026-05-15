@@ -47,11 +47,34 @@ export interface StringCommandArgFlagSpec {
 }
 
 /**
+ * Optional string flag definition for command-local parsing.
+ */
+export interface OptionalStringCommandArgFlagSpec {
+  /**
+   * Flag aliases accepted by the command.
+   */
+  names: readonly string[];
+  /**
+   * Parser behavior for this flag.
+   */
+  type: "optional-string";
+  /**
+   * Initial value assigned before command arguments are parsed.
+   */
+  defaultValue?: string | true;
+  /**
+   * Value hint used by callers when rendering command-local help.
+   */
+  valueName?: string;
+}
+
+/**
  * Flag definition accepted by `parseCommandArgs`.
  */
 export type CommandArgFlagSpec =
   | BooleanCommandArgFlagSpec
-  | StringCommandArgFlagSpec;
+  | StringCommandArgFlagSpec
+  | OptionalStringCommandArgFlagSpec;
 
 /**
  * Command-local flag spec keyed by the desired result property name.
@@ -95,9 +118,13 @@ export interface ParseCommandArgsSpec<
 type CommandArgFlagValue<TFlag extends CommandArgFlagSpec> =
   TFlag extends BooleanCommandArgFlagSpec
     ? boolean
-    : TFlag extends { defaultValue: string }
-      ? string
-      : string | undefined;
+    : TFlag extends OptionalStringCommandArgFlagSpec
+      ? TFlag extends { defaultValue: string | true }
+        ? string | true
+        : string | true | undefined
+      : TFlag extends { defaultValue: string }
+        ? string
+        : string | undefined;
 
 type ParsedCommandArgFlags<TFlags extends CommandArgFlagSpecRecord> = {
   [TKey in keyof TFlags]: CommandArgFlagValue<TFlags[TKey]>;
@@ -135,6 +162,11 @@ interface FlagLookupEntry {
   key: string;
   negated: boolean;
   spec: CommandArgFlagSpec;
+}
+
+interface FlagTokenLookupResult {
+  entry: FlagLookupEntry;
+  inlineValue?: string;
 }
 
 function describeFlagLookupEntry(entry: FlagLookupEntry): string {
@@ -204,6 +236,32 @@ function createDefaultFlags<TFlags extends CommandArgFlagSpecRecord>(
   return parsedFlags as ParsedCommandArgFlags<TFlags>;
 }
 
+function lookupFlagToken(
+  arg: string,
+  flagLookup: Map<string, FlagLookupEntry>
+): FlagTokenLookupResult | undefined {
+  const entry = flagLookup.get(arg);
+  if (entry) {
+    return { entry };
+  }
+
+  const equalsIndex = arg.indexOf("=");
+  if (equalsIndex === -1) {
+    return undefined;
+  }
+
+  const name = arg.slice(0, equalsIndex);
+  const inlineEntry = flagLookup.get(name);
+  if (inlineEntry?.spec.type !== "optional-string") {
+    return undefined;
+  }
+
+  return {
+    entry: inlineEntry,
+    inlineValue: arg.slice(equalsIndex + 1),
+  };
+}
+
 function createDefaultPositionals<
   TPositionals extends readonly CommandArgPositionSpec[],
 >(positionals: TPositionals): ParsedCommandArgPositionals<TPositionals> {
@@ -246,12 +304,37 @@ function assignFlagValue<TFlags extends CommandArgFlagSpecRecord>(
   args: readonly string[],
   index: number,
   entry: FlagLookupEntry,
+  inlineValue: string | undefined,
   flagLookup: Map<string, FlagLookupEntry>,
   parsedFlags: ParsedCommandArgFlags<TFlags>
 ): number {
   if (entry.spec.type === "boolean") {
     parsedFlags[entry.key as keyof ParsedCommandArgFlags<TFlags>] =
       !entry.negated as ParsedCommandArgFlags<TFlags>[keyof ParsedCommandArgFlags<TFlags>];
+    return index;
+  }
+
+  if (entry.spec.type === "optional-string") {
+    if (inlineValue !== undefined) {
+      parsedFlags[entry.key as keyof ParsedCommandArgFlags<TFlags>] =
+        inlineValue as ParsedCommandArgFlags<TFlags>[keyof ParsedCommandArgFlags<TFlags>];
+      return index;
+    }
+
+    const nextArg = args[index + 1];
+    const isNegativeNumberToken =
+      typeof nextArg === "string" && /^-\d+(\.\d+)?$/.test(nextArg);
+    if (
+      typeof nextArg === "string" &&
+      (!nextArg.startsWith("-") || isNegativeNumberToken)
+    ) {
+      parsedFlags[entry.key as keyof ParsedCommandArgFlags<TFlags>] =
+        nextArg as ParsedCommandArgFlags<TFlags>[keyof ParsedCommandArgFlags<TFlags>];
+      return index + 1;
+    }
+
+    parsedFlags[entry.key as keyof ParsedCommandArgFlags<TFlags>] =
+      true as ParsedCommandArgFlags<TFlags>[keyof ParsedCommandArgFlags<TFlags>];
     return index;
   }
 
@@ -298,12 +381,19 @@ export function parseCommandArgs<
     }
 
     if (arg.startsWith("-")) {
-      const entry = flagLookup.get(arg);
-      if (!entry) {
+      const result = lookupFlagToken(arg, flagLookup);
+      if (!result) {
         throw createParserError("UNKNOWN_OPTION", arg);
       }
 
-      index = assignFlagValue(args, index, entry, flagLookup, parsedFlags);
+      index = assignFlagValue(
+        args,
+        index,
+        result.entry,
+        result.inlineValue,
+        flagLookup,
+        parsedFlags
+      );
       continue;
     }
 
