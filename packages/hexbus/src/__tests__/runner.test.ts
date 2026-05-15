@@ -46,6 +46,10 @@ function createTelemetry(): Telemetry {
   };
 }
 
+function hasCliContext(value: unknown): value is { context: CliContext } {
+  return value !== null && typeof value === "object" && "context" in value;
+}
+
 function createContext(overrides: Partial<CliContext> = {}): CliContext {
   const telemetry = createTelemetry();
   return {
@@ -287,16 +291,22 @@ describe(runCli, () => {
     expect(afterContextArg?.telemetry).toBe(context.telemetry);
 
     expect(beforeCommand).toHaveBeenCalled();
-    const beforeCommandArg = beforeCommand.mock.calls[0]?.[0];
-    expect(beforeCommandArg?.context.telemetry).toBe(context.telemetry);
+    const beforeCommandArg: unknown = beforeCommand.mock.calls[0]?.[0];
+    if (!hasCliContext(beforeCommandArg)) {
+      throw new Error("Expected beforeCommand to receive a CLI context");
+    }
+    expect(beforeCommandArg.context.telemetry).toBe(context.telemetry);
 
     expect(action).toHaveBeenCalled();
     const actionArg = action.mock.calls[0]?.[0];
     expect(actionArg?.telemetry).toBe(context.telemetry);
 
     expect(afterCommand).toHaveBeenCalled();
-    const afterCommandArg = afterCommand.mock.calls[0]?.[0];
-    expect(afterCommandArg?.context.telemetry).toBe(context.telemetry);
+    const afterCommandArg: unknown = afterCommand.mock.calls[0]?.[0];
+    if (!hasCliContext(afterCommandArg)) {
+      throw new Error("Expected afterCommand to receive a CLI context");
+    }
+    expect(afterCommandArg.context.telemetry).toBe(context.telemetry);
   });
 
   it("dispatches nested commands and tracks the command path", async () => {

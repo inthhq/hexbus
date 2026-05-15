@@ -61,12 +61,15 @@ const DEFAULT_TIMEOUT_MS = 3000;
 const DEFAULT_BATCH_SIZE = 20;
 const DEFAULT_BATCH_INTERVAL_MS = 1000;
 const DEFAULT_MAX_BUFFER_SIZE = 250;
+const QUEUE_LOCK_STALE_MS = 120_000;
+const QUEUE_LOCK_RETRY_MS = 20;
 const MAX_DEPTH = 5;
 const MAX_ARRAY_LENGTH = 20;
 const MAX_OBJECT_KEYS = 50;
 const MAX_STRING_LENGTH = 500;
 
 const RESERVED_TOP_LEVEL_KEYS = new Set([
+  "appName",
   "arch",
   "ci",
   "command",
@@ -220,6 +223,16 @@ function isCi(): boolean {
   );
 }
 
+function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error && "code" in error;
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 function sanitizePrimitive(
   value: boolean | number | string,
   keyHint?: string
@@ -348,10 +361,11 @@ class DurableTelemetry implements Telemetry {
   private readonly storageDir: string;
   private readonly statePath: string;
   private readonly queuePath: string;
+  private readonly queueLockPath: string;
   private readonly sessionId = crypto.randomUUID();
-  private readonly installId: string;
-  private readonly isFirstRun: boolean;
-  private readonly drain: PipelineDrainFn<DrainContext>;
+  private readonly installId: string | undefined;
+  private readonly isFirstRun: boolean | undefined;
+  private readonly drain: PipelineDrainFn<DrainContext> | undefined;
   private readonly eventNameMap: Record<string, string>;
   private readonly sanitizeHook: TelemetryOptions["sanitize"];
   private readonly timeoutMs: number;
@@ -380,9 +394,17 @@ class DurableTelemetry implements Telemetry {
     this.storageDir = defaults.storageDir;
     this.statePath = defaults.statePath;
     this.queuePath = defaults.queuePath;
+    this.queueLockPath = `${defaults.queuePath}.lock`;
     this.eventNameMap = defaults.eventNameMap;
     this.sanitizeHook = defaults.sanitizeHook;
     this.timeoutMs = defaults.timeoutMs;
+
+    if (this.disabled) {
+      this.installId = undefined;
+      this.isFirstRun = undefined;
+      this.drain = undefined;
+      return;
+    }
 
     const identity = this.loadOrCreateInstallIdentity();
     this.installId = identity.installId;
@@ -482,7 +504,7 @@ class DurableTelemetry implements Telemetry {
   }
 
   flushSync(): void {
-    if (this.disabled) {
+    if (this.disabled || this.flushPromise) {
       return;
     }
 
@@ -652,6 +674,10 @@ class DurableTelemetry implements Telemetry {
 
   private async flushAll(): Promise<void> {
     try {
+      if (!this.drain) {
+        return;
+      }
+
       await this.queueReplayPromise;
       await this.drain.flush();
       await this.queueWritePromise;
@@ -701,11 +727,13 @@ class DurableTelemetry implements Telemetry {
   ): Promise<void> {
     const write = async () => {
       try {
-        const existing = await this.readQueuedEvents();
-        const next = [...existing, ...events.map((item) => item.event)].slice(
-          -DEFAULT_QUEUE_LIMIT
-        );
-        await this.writeQueuedEvents(next);
+        await this.withQueueLock(async () => {
+          const existing = await this.readQueuedEvents({ locked: true });
+          const next = [...existing, ...events.map((item) => item.event)].slice(
+            -DEFAULT_QUEUE_LIMIT
+          );
+          await this.writeQueuedEvents(next, { locked: true });
+        });
 
         if (this.debug) {
           this.logDebug(
@@ -736,20 +764,22 @@ class DurableTelemetry implements Telemetry {
     }
 
     try {
-      const queuedEvents = await this.readQueuedEvents();
+      await this.withQueueLock(async () => {
+        const queuedEvents = await this.readQueuedEvents({ locked: true });
 
-      if (queuedEvents.length === 0) {
-        return;
-      }
+        if (queuedEvents.length === 0) {
+          return;
+        }
 
-      await this.sendBatch(queuedEvents);
-      await fs.unlink(this.queuePath).catch(() => {});
+        await this.sendBatch(queuedEvents);
+        await fs.unlink(this.queuePath).catch(() => {});
 
-      if (this.debug) {
-        this.logDebug(
-          `Replayed ${queuedEvents.length} queued telemetry event(s)`
-        );
-      }
+        if (this.debug) {
+          this.logDebug(
+            `Replayed ${queuedEvents.length} queued telemetry event(s)`
+          );
+        }
+      });
     } catch (error) {
       if (this.debug) {
         this.logDebug("Failed to replay queued telemetry events:", error);
@@ -757,10 +787,20 @@ class DurableTelemetry implements Telemetry {
     }
   }
 
-  private async readQueuedEvents(): Promise<WideEvent[]> {
+  private readQueuedEvents(
+    options: { locked?: boolean } = {}
+  ): Promise<WideEvent[]> {
+    if (options.locked) {
+      return this.readQueuedEventsUnlocked();
+    }
+
+    return this.withQueueLock(() => this.readQueuedEventsUnlocked());
+  }
+
+  private async readQueuedEventsUnlocked(): Promise<WideEvent[]> {
     try {
       const content = await fs.readFile(this.queuePath, "utf-8");
-      const parsed = JSON.parse(content);
+      const parsed: unknown = JSON.parse(content);
 
       if (!Array.isArray(parsed)) {
         return [];
@@ -774,11 +814,74 @@ class DurableTelemetry implements Telemetry {
     }
   }
 
-  private async writeQueuedEvents(events: WideEvent[]): Promise<void> {
+  private async writeQueuedEvents(
+    events: WideEvent[],
+    options: { locked?: boolean } = {}
+  ): Promise<void> {
+    if (options.locked) {
+      await this.writeQueuedEventsUnlocked(events);
+      return;
+    }
+
+    await this.withQueueLock(() => this.writeQueuedEventsUnlocked(events));
+  }
+
+  private async writeQueuedEventsUnlocked(events: WideEvent[]): Promise<void> {
     await fs.mkdir(this.storageDir, { recursive: true });
-    await fs.writeFile(this.queuePath, JSON.stringify(events, null, 2), {
-      mode: 0o600,
-    });
+    const tempPath = `${this.queuePath}.${process.pid}.${crypto.randomUUID()}.tmp`;
+
+    try {
+      await fs.writeFile(tempPath, JSON.stringify(events, null, 2), {
+        mode: 0o600,
+      });
+      await fs.rename(tempPath, this.queuePath);
+    } catch (error) {
+      await fs.unlink(tempPath).catch(() => {});
+      throw error;
+    }
+  }
+
+  private async withQueueLock<T>(action: () => Promise<T>): Promise<T> {
+    await fs.mkdir(this.storageDir, { recursive: true });
+    await this.acquireQueueLock();
+
+    try {
+      return await action();
+    } finally {
+      await fs.rm(this.queueLockPath, { force: true, recursive: true });
+    }
+  }
+
+  private async acquireQueueLock(): Promise<void> {
+    while (true) {
+      try {
+        await fs.mkdir(this.queueLockPath, { mode: 0o700 });
+        return;
+      } catch (error) {
+        if (!isErrnoException(error) || error.code !== "EEXIST") {
+          throw error;
+        }
+
+        await this.removeStaleQueueLock();
+        await wait(QUEUE_LOCK_RETRY_MS);
+      }
+    }
+  }
+
+  private async removeStaleQueueLock(): Promise<void> {
+    try {
+      const stats = await fs.stat(this.queueLockPath);
+
+      if (Date.now() - stats.mtimeMs > QUEUE_LOCK_STALE_MS) {
+        await fs.rm(this.queueLockPath, { force: true, recursive: true });
+      }
+    } catch (error) {
+      if (isErrnoException(error) && error.code === "ENOENT") {
+        return;
+      }
+
+      throw error;
+    }
   }
 
   private loadOrCreateInstallIdentity(): {

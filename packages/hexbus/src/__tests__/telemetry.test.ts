@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -7,6 +8,54 @@ import { describe, expect, it, vi } from "vitest";
 import { createDisabledTelemetry, createTelemetry } from "../telemetry";
 
 type MockFetch = (endpoint: string, request: RequestInit) => Promise<Response>;
+type ParsedTelemetryEvent = Record<string, unknown> & {
+  apiKey?: string;
+  event: string;
+  nested?: {
+    token?: string;
+    value?: string;
+  };
+  url?: string;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object";
+}
+
+function hasOptionalString(
+  record: Record<string, unknown>,
+  key: string
+): boolean {
+  return !(key in record) || typeof record[key] === "string";
+}
+
+function isNestedTelemetryValue(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    hasOptionalString(value, "token") &&
+    hasOptionalString(value, "value")
+  );
+}
+
+function isParsedTelemetryEvent(value: unknown): value is ParsedTelemetryEvent {
+  return (
+    isRecord(value) &&
+    typeof value.event === "string" &&
+    hasOptionalString(value, "apiKey") &&
+    hasOptionalString(value, "url") &&
+    (!("nested" in value) || isNestedTelemetryValue(value.nested))
+  );
+}
+
+function parseTelemetryEvents(content: string): ParsedTelemetryEvent[] {
+  const parsed: unknown = JSON.parse(content);
+
+  if (!Array.isArray(parsed) || !parsed.every(isParsedTelemetryEvent)) {
+    throw new Error("Expected telemetry payload to be an event array");
+  }
+
+  return parsed;
+}
 
 describe("telemetry", () => {
   it("creates disabled telemetry", () => {
@@ -35,7 +84,7 @@ describe("telemetry", () => {
     const storageDir = await fs.mkdtemp(path.join(os.tmpdir(), "hexbus-"));
     const telemetry = createTelemetry({
       appName: "test-cli",
-      defaultProperties: { cliVersion: "1.0.0" },
+      defaultProperties: { appName: "overridden-cli", cliVersion: "1.0.0" },
       endpoint: "https://telemetry.example.test/ingest",
       fetch: fetchImpl as unknown as typeof fetch,
       headers: { Authorization: "Bearer test" },
@@ -56,15 +105,11 @@ describe("telemetry", () => {
       "content-type": "application/json",
     });
 
-    const body = JSON.parse(String(request?.body)) as {
-      event: string;
-      apiKey?: string;
-      nested?: { token?: string; value?: string };
-      url?: string;
-    }[];
+    const body = parseTelemetryEvents(String(request?.body));
     expect(body).toHaveLength(1);
     expect(body[0]).toMatchObject({
       apiKey: "[redacted]",
+      appName: "test-cli",
       event: "custom_event",
       nested: { token: "[redacted]", value: "ok" },
       url: "https://example.test/path",
@@ -95,9 +140,9 @@ describe("telemetry", () => {
     telemetry.trackEvent("one");
     await telemetry.flush();
 
-    const queued = JSON.parse(
+    const queued = parseTelemetryEvents(
       await fs.readFile(path.join(storageDir, queueFileName), "utf-8")
-    ) as Record<string, unknown>[];
+    );
     expect(queued.length).toBeGreaterThan(0);
 
     const replayTelemetry = createTelemetry({
@@ -118,15 +163,33 @@ describe("telemetry", () => {
       })
     );
 
-    const replayBody = JSON.parse(String(replayRequest?.body)) as Record<
-      string,
-      unknown
-    >[];
+    const replayBody = parseTelemetryEvents(String(replayRequest?.body));
     expect(replayBody).toEqual(queued);
     expect(replayBody[0]).toEqual(expect.objectContaining({ event: "one" }));
 
     await expect(
       fs.readFile(path.join(storageDir, queueFileName), "utf-8")
     ).rejects.toThrow();
+  });
+
+  it("does not create telemetry state when disabled", async () => {
+    const storageDir = path.join(
+      os.tmpdir(),
+      `hexbus-disabled-${crypto.randomUUID()}`
+    );
+    const telemetry = createTelemetry({
+      appName: "test-cli",
+      disabled: true,
+      endpoint: "https://telemetry.example.test/ingest",
+      storageDir,
+    });
+
+    telemetry.trackEvent("disabled_event");
+    telemetry.flushSync();
+    await telemetry.flush();
+    await telemetry.shutdown();
+
+    expect(telemetry.isDisabled()).toBe(true);
+    await expect(fs.stat(storageDir)).rejects.toThrow();
   });
 });
