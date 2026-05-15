@@ -1,5 +1,11 @@
 # hexbus
 
+## 0.6.1
+
+### Patch Changes
+
+- 1304e62: Add optional string command flags that accept bare, equals-form, and next-argument values.
+
 ## 0.6.0
 
 ### Minor Changes
