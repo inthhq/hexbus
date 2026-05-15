@@ -6,6 +6,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createDisabledTelemetry, createTelemetry } from "../telemetry";
 
+type MockFetch = (endpoint: string, request: RequestInit) => Promise<Response>;
+
 describe("telemetry", () => {
   it("creates disabled telemetry", () => {
     const telemetry = createDisabledTelemetry();
@@ -27,7 +29,7 @@ describe("telemetry", () => {
   });
 
   it("sends sanitized event batches to the configured endpoint", async () => {
-    const fetchImpl = vi.fn(() =>
+    const fetchImpl = vi.fn<MockFetch>(() =>
       Promise.resolve(new Response(null, { status: 204 }))
     );
     const storageDir = await fs.mkdtemp(path.join(os.tmpdir(), "hexbus-"));
@@ -35,7 +37,7 @@ describe("telemetry", () => {
       appName: "test-cli",
       defaultProperties: { cliVersion: "1.0.0" },
       endpoint: "https://telemetry.example.test/ingest",
-      fetch: fetchImpl,
+      fetch: fetchImpl as unknown as typeof fetch,
       headers: { Authorization: "Bearer test" },
       storageDir,
     });
@@ -72,8 +74,10 @@ describe("telemetry", () => {
   it("persists dropped events for replay", async () => {
     const storageDir = await fs.mkdtemp(path.join(os.tmpdir(), "hexbus-"));
     const queueFileName = "queue.json";
-    const failingFetch = vi.fn(() => Promise.reject(new Error("network down")));
-    const replayFetch = vi.fn(() =>
+    const failingFetch = vi.fn<MockFetch>(() =>
+      Promise.reject(new Error("network down"))
+    );
+    const replayFetch = vi.fn<MockFetch>(() =>
       Promise.resolve(new Response(null, { status: 204 }))
     );
     const telemetry = createTelemetry({
@@ -83,7 +87,7 @@ describe("telemetry", () => {
         retry: { initialDelayMs: 1, maxAttempts: 1 },
       },
       endpoint: "https://telemetry.example.test/ingest",
-      fetch: failingFetch,
+      fetch: failingFetch as unknown as typeof fetch,
       queueFileName,
       storageDir,
     });
@@ -93,13 +97,13 @@ describe("telemetry", () => {
 
     const queued = JSON.parse(
       await fs.readFile(path.join(storageDir, queueFileName), "utf-8")
-    ) as unknown[];
+    ) as Record<string, unknown>[];
     expect(queued.length).toBeGreaterThan(0);
 
     const replayTelemetry = createTelemetry({
       appName: "test-cli",
       endpoint: "https://telemetry.example.test/ingest",
-      fetch: replayFetch,
+      fetch: replayFetch as unknown as typeof fetch,
       queueFileName,
       storageDir,
     });
@@ -114,16 +118,12 @@ describe("telemetry", () => {
       })
     );
 
-    const replayBody = JSON.parse(
-      String((replayRequest as RequestInit).body)
-    ) as Record<string, unknown>[];
-    expect(replayBody).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          event: "one",
-        }),
-      ])
-    );
+    const replayBody = JSON.parse(String(replayRequest?.body)) as Record<
+      string,
+      unknown
+    >[];
+    expect(replayBody).toEqual(queued);
+    expect(replayBody[0]).toEqual(expect.objectContaining({ event: "one" }));
 
     await expect(
       fs.readFile(path.join(storageDir, queueFileName), "utf-8")

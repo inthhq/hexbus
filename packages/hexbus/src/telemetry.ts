@@ -21,6 +21,16 @@ interface TelemetryObject {
 type TelemetryValue = TelemetryObject | TelemetryPrimitive | TelemetryValue[];
 type TelemetryProperties = Record<string, TelemetryValue | undefined>;
 type EventLike = Record<string, unknown>;
+type DrainBatchOptions = NonNullable<
+  DrainPipelineOptions<DrainContext>["batch"]
+>;
+type DrainDroppedHandler = NonNullable<
+  DrainPipelineOptions<DrainContext>["onDropped"]
+>;
+type DrainRetryOptions = NonNullable<
+  DrainPipelineOptions<DrainContext>["retry"]
+>;
+
 interface ResolvedTelemetryOptions {
   appName: string;
   debug: boolean;
@@ -555,30 +565,46 @@ class DurableTelemetry implements Telemetry {
   private buildDrainPipeline(
     userDrainOptions?: DrainPipelineOptions<DrainContext>
   ): DrainPipelineConfig {
-    const onDropped = userDrainOptions?.onDropped;
     const drain = createDrainPipeline<DrainContext>({
-      batch: {
-        intervalMs:
-          userDrainOptions?.batch?.intervalMs ?? DEFAULT_BATCH_INTERVAL_MS,
-        size: userDrainOptions?.batch?.size ?? DEFAULT_BATCH_SIZE,
-      },
+      batch: DurableTelemetry.buildDrainBatchOptions(userDrainOptions?.batch),
       maxBufferSize: userDrainOptions?.maxBufferSize ?? DEFAULT_MAX_BUFFER_SIZE,
-      onDropped: (events, error) => {
-        onDropped?.(events, error);
-        void this.persistDroppedEvents(events, error);
-      },
-      retry: {
-        backoff: userDrainOptions?.retry?.backoff ?? "fixed",
-        initialDelayMs: userDrainOptions?.retry?.initialDelayMs ?? 250,
-        maxAttempts: userDrainOptions?.retry?.maxAttempts ?? 2,
-        maxDelayMs: userDrainOptions?.retry?.maxDelayMs ?? 1000,
-      },
+      onDropped: this.buildDroppedEventsHandler(userDrainOptions?.onDropped),
+      retry: DurableTelemetry.buildDrainRetryOptions(userDrainOptions?.retry),
     });
     const handler = async (batch: DrainContext[]) => {
       await this.sendBatch(batch.map((item) => item.event));
     };
 
     return { drain, handler };
+  }
+
+  private static buildDrainBatchOptions(
+    batch?: DrainBatchOptions
+  ): DrainBatchOptions {
+    return {
+      intervalMs: batch?.intervalMs ?? DEFAULT_BATCH_INTERVAL_MS,
+      size: batch?.size ?? DEFAULT_BATCH_SIZE,
+    };
+  }
+
+  private static buildDrainRetryOptions(
+    retry?: DrainRetryOptions
+  ): DrainRetryOptions {
+    return {
+      backoff: retry?.backoff ?? "fixed",
+      initialDelayMs: retry?.initialDelayMs ?? 250,
+      maxAttempts: retry?.maxAttempts ?? 2,
+      maxDelayMs: retry?.maxDelayMs ?? 1000,
+    };
+  }
+
+  private buildDroppedEventsHandler(
+    onDropped?: DrainDroppedHandler
+  ): DrainDroppedHandler {
+    return (events, error) => {
+      onDropped?.(events, error);
+      void this.persistDroppedEvents(events, error);
+    };
   }
 
   private applyLoggerConfig(): void {

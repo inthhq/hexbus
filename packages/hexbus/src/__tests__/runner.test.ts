@@ -262,8 +262,12 @@ describe(runCli, () => {
       commandName: "share",
     });
     const afterContext = vi.fn((baseContext: CliContext) => baseContext);
-    const beforeCommand = vi.fn();
-    const afterCommand = vi.fn();
+    const beforeCommand = vi.fn((hookContext: { context: CliContext }) => {
+      void hookContext;
+    });
+    const afterCommand = vi.fn((hookContext: { context: CliContext }) => {
+      void hookContext;
+    });
     mocks.createCliContext.mockResolvedValue(context);
 
     await runCli({
@@ -283,9 +287,7 @@ describe(runCli, () => {
     expect(afterContextArg?.telemetry).toBe(context.telemetry);
 
     expect(beforeCommand).toHaveBeenCalled();
-    const beforeCommandArg = beforeCommand.mock.calls[0]?.[0] as
-      | { context: CliContext }
-      | undefined;
+    const beforeCommandArg = beforeCommand.mock.calls[0]?.[0];
     expect(beforeCommandArg?.context.telemetry).toBe(context.telemetry);
 
     expect(action).toHaveBeenCalled();
@@ -293,9 +295,7 @@ describe(runCli, () => {
     expect(actionArg?.telemetry).toBe(context.telemetry);
 
     expect(afterCommand).toHaveBeenCalled();
-    const afterCommandArg = afterCommand.mock.calls[0]?.[0] as
-      | { context: CliContext }
-      | undefined;
+    const afterCommandArg = afterCommand.mock.calls[0]?.[0];
     expect(afterCommandArg?.context.telemetry).toBe(context.telemetry);
   });
 
