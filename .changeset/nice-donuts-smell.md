@@ -1,0 +1,5 @@
+---
+"hexbus": minor
+---
+
+Added Evlog

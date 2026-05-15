@@ -350,9 +350,9 @@ export interface FileSystemUtils {
  * Telemetry client used by CLI lifecycle and command code.
  *
  * @remarks
- * The built-in implementation queues events in memory and flushes them only
- * when an endpoint is configured. Commands should treat telemetry as best
- * effort and never depend on it for core behavior.
+ * The built-in implementation queues events through Hexbus' durable
+ * best-effort pipeline. Commands should never depend on telemetry for core
+ * behavior.
  */
 export interface Telemetry {
   /**
@@ -375,6 +375,10 @@ export interface Telemetry {
    * Sends queued events when possible and clears the local queue.
    */
   flush(): Promise<void>;
+  /**
+   * Starts an immediate best-effort flush and stores the promise internally.
+   */
+  flushSync(): void;
   /**
    * Starts an immediate best-effort flush without requiring callers to await it.
    *

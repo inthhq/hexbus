@@ -37,12 +37,17 @@ function createTelemetry(): Telemetry {
   return {
     flush: vi.fn(() => Promise.resolve()),
     flushBackground: vi.fn(),
+    flushSync: vi.fn(),
     isDisabled: vi.fn(() => false),
     shutdown: vi.fn(() => Promise.resolve()),
     trackCommand: vi.fn(),
     trackError: vi.fn(),
     trackEvent: vi.fn(),
   };
+}
+
+function hasCliContext(value: unknown): value is { context: CliContext } {
+  return value !== null && typeof value === "object" && "context" in value;
 }
 
 function createContext(overrides: Partial<CliContext> = {}): CliContext {
@@ -168,7 +173,10 @@ describe(runCli, () => {
   });
 
   it("dispatches a matched command with lifecycle hooks", async () => {
-    const action = vi.fn(() => Promise.resolve());
+    const action = vi.fn((baseContext: CliContext) => {
+      void baseContext;
+      return Promise.resolve();
+    });
     const command: CliCommand = {
       action,
       description: "Say hello",
@@ -240,6 +248,65 @@ describe(runCli, () => {
       { command: "hello" }
     );
     expect(context.telemetry.shutdown).toHaveBeenCalledOnce();
+  });
+
+  it("passes the same telemetry instance through context, hooks, and command actions", async () => {
+    const action = vi.fn((baseContext: CliContext) => {
+      void baseContext;
+      return Promise.resolve();
+    });
+    const command: CliCommand = {
+      action,
+      description: "Share telemetry",
+      hint: "Share",
+      label: "Share",
+      name: "share",
+    };
+    const context = createContext({
+      commandName: "share",
+    });
+    const afterContext = vi.fn((baseContext: CliContext) => baseContext);
+    const beforeCommand = vi.fn((hookContext: { context: CliContext }) => {
+      void hookContext;
+    });
+    const afterCommand = vi.fn((hookContext: { context: CliContext }) => {
+      void hookContext;
+    });
+    mocks.createCliContext.mockResolvedValue(context);
+
+    await runCli({
+      appName: "test-cli",
+      commands: [command],
+      hooks: {
+        afterCommand,
+        afterContext,
+        beforeCommand,
+      },
+      packageInfo,
+      rawArgs: ["share"],
+    });
+
+    expect(afterContext).toHaveBeenCalled();
+    const afterContextArg = afterContext.mock.calls[0]?.[0];
+    expect(afterContextArg?.telemetry).toBe(context.telemetry);
+
+    expect(beforeCommand).toHaveBeenCalled();
+    const beforeCommandArg: unknown = beforeCommand.mock.calls[0]?.[0];
+    if (!hasCliContext(beforeCommandArg)) {
+      throw new Error("Expected beforeCommand to receive a CLI context");
+    }
+    expect(beforeCommandArg.context.telemetry).toBe(context.telemetry);
+
+    expect(action).toHaveBeenCalled();
+    const actionArg = action.mock.calls[0]?.[0];
+    expect(actionArg?.telemetry).toBe(context.telemetry);
+
+    expect(afterCommand).toHaveBeenCalled();
+    const afterCommandArg: unknown = afterCommand.mock.calls[0]?.[0];
+    if (!hasCliContext(afterCommandArg)) {
+      throw new Error("Expected afterCommand to receive a CLI context");
+    }
+    expect(afterCommandArg.context.telemetry).toBe(context.telemetry);
   });
 
   it("dispatches nested commands and tracks the command path", async () => {
