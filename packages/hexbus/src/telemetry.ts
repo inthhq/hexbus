@@ -21,6 +21,30 @@ interface TelemetryObject {
 type TelemetryValue = TelemetryObject | TelemetryPrimitive | TelemetryValue[];
 type TelemetryProperties = Record<string, TelemetryValue | undefined>;
 type EventLike = Record<string, unknown>;
+interface ResolvedTelemetryOptions {
+  appName: string;
+  debug: boolean;
+  defaultProperties: TelemetryObject;
+  disabled: boolean;
+  endpoint: string | undefined;
+  envVarPrefix: string;
+  eventNameMap: Record<string, string>;
+  fetchImpl: typeof fetch;
+  headers: Record<string, string>;
+  logger: TelemetryOptions["logger"];
+  queuePath: string;
+  sanitizeHook: TelemetryOptions["sanitize"];
+  source: string;
+  statePath: string;
+  storageDir: string;
+  timeoutMs: number;
+}
+interface DrainPipelineConfig {
+  drain: (
+    handler: (batch: DrainContext[]) => Promise<void>
+  ) => PipelineDrainFn<DrainContext>;
+  handler: (batch: DrainContext[]) => Promise<void>;
+}
 
 const DEFAULT_QUEUE_LIMIT = 250;
 const DEFAULT_TIMEOUT_MS = 3000;
@@ -333,63 +357,29 @@ class DurableTelemetry implements Telemetry {
   private queueWritePromise: Promise<void> = Promise.resolve();
 
   constructor(options: TelemetryOptions = {}) {
-    const envVarPrefix = options.envVarPrefix ?? "APP";
-    this.disabled = options.disabled === true || isEnvDisabled(envVarPrefix);
-    this.debug = options.debug === true;
-    this.logger = options.logger;
-    this.appName = options.appName ?? "cli";
-    this.source = options.source ?? this.appName;
-    this.endpoint = options.endpoint;
-    this.fetchImpl = options.fetch ?? fetch;
-    this.headers = {
-      "content-type": "application/json",
-      ...options.headers,
-    };
-    this.defaultProperties = this.sanitizeProperties(
-      options.defaultProperties ?? {}
-    );
-    this.storageDir =
-      options.storageDir ?? path.join(os.homedir(), `.${this.appName}`);
-    this.statePath = path.join(
-      this.storageDir,
-      options.stateFileName ?? "telemetry.json"
-    );
-    this.queuePath = path.join(
-      this.storageDir,
-      options.queueFileName ?? "telemetry-queue.json"
-    );
-    this.eventNameMap = options.eventNameMap ?? {};
-    this.sanitizeHook = options.sanitize;
-    this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    const defaults = this.buildDefaultOptions(options);
+    this.disabled = defaults.disabled;
+    this.debug = defaults.debug;
+    this.logger = defaults.logger;
+    this.appName = defaults.appName;
+    this.source = defaults.source;
+    this.endpoint = defaults.endpoint;
+    this.fetchImpl = defaults.fetchImpl;
+    this.headers = defaults.headers;
+    this.defaultProperties = defaults.defaultProperties;
+    this.storageDir = defaults.storageDir;
+    this.statePath = defaults.statePath;
+    this.queuePath = defaults.queuePath;
+    this.eventNameMap = defaults.eventNameMap;
+    this.sanitizeHook = defaults.sanitizeHook;
+    this.timeoutMs = defaults.timeoutMs;
 
     const identity = this.loadOrCreateInstallIdentity();
     this.installId = identity.installId;
     this.isFirstRun = identity.isFirstRun;
 
-    const userDrainOptions = options.drainOptions;
-    const onDropped = userDrainOptions?.onDropped;
-    const pipeline = createDrainPipeline<DrainContext>({
-      batch: {
-        intervalMs:
-          userDrainOptions?.batch?.intervalMs ?? DEFAULT_BATCH_INTERVAL_MS,
-        size: userDrainOptions?.batch?.size ?? DEFAULT_BATCH_SIZE,
-      },
-      maxBufferSize: userDrainOptions?.maxBufferSize ?? DEFAULT_MAX_BUFFER_SIZE,
-      onDropped: (events, error) => {
-        onDropped?.(events, error);
-        void this.persistDroppedEvents(events, error);
-      },
-      retry: {
-        backoff: userDrainOptions?.retry?.backoff ?? "fixed",
-        initialDelayMs: userDrainOptions?.retry?.initialDelayMs ?? 250,
-        maxAttempts: userDrainOptions?.retry?.maxAttempts ?? 2,
-        maxDelayMs: userDrainOptions?.retry?.maxDelayMs ?? 1000,
-      },
-    });
-
-    this.drain = pipeline(async (batch) => {
-      await this.sendBatch(batch.map((item) => item.event));
-    });
+    const { drain, handler } = this.buildDrainPipeline(options.drainOptions);
+    this.drain = drain(handler);
 
     this.applyLoggerConfig();
     this.queueReplayPromise = this.flushQueuedEvents();
@@ -521,6 +511,74 @@ class DurableTelemetry implements Telemetry {
 
   isDisabled(): boolean {
     return this.disabled;
+  }
+
+  private buildDefaultOptions(
+    options: TelemetryOptions
+  ): ResolvedTelemetryOptions {
+    const envVarPrefix = options.envVarPrefix ?? "APP";
+    const appName = options.appName ?? "cli";
+    const storageDir =
+      options.storageDir ?? path.join(os.homedir(), `.${appName}`);
+
+    return {
+      appName,
+      debug: options.debug === true,
+      defaultProperties: this.sanitizeProperties(
+        options.defaultProperties ?? {}
+      ),
+      disabled: options.disabled === true || isEnvDisabled(envVarPrefix),
+      endpoint: options.endpoint,
+      envVarPrefix,
+      eventNameMap: options.eventNameMap ?? {},
+      fetchImpl: options.fetch ?? fetch,
+      headers: {
+        "content-type": "application/json",
+        ...options.headers,
+      },
+      logger: options.logger,
+      queuePath: path.join(
+        storageDir,
+        options.queueFileName ?? "telemetry-queue.json"
+      ),
+      sanitizeHook: options.sanitize,
+      source: options.source ?? appName,
+      statePath: path.join(
+        storageDir,
+        options.stateFileName ?? "telemetry.json"
+      ),
+      storageDir,
+      timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    };
+  }
+
+  private buildDrainPipeline(
+    userDrainOptions?: DrainPipelineOptions<DrainContext>
+  ): DrainPipelineConfig {
+    const onDropped = userDrainOptions?.onDropped;
+    const drain = createDrainPipeline<DrainContext>({
+      batch: {
+        intervalMs:
+          userDrainOptions?.batch?.intervalMs ?? DEFAULT_BATCH_INTERVAL_MS,
+        size: userDrainOptions?.batch?.size ?? DEFAULT_BATCH_SIZE,
+      },
+      maxBufferSize: userDrainOptions?.maxBufferSize ?? DEFAULT_MAX_BUFFER_SIZE,
+      onDropped: (events, error) => {
+        onDropped?.(events, error);
+        void this.persistDroppedEvents(events, error);
+      },
+      retry: {
+        backoff: userDrainOptions?.retry?.backoff ?? "fixed",
+        initialDelayMs: userDrainOptions?.retry?.initialDelayMs ?? 250,
+        maxAttempts: userDrainOptions?.retry?.maxAttempts ?? 2,
+        maxDelayMs: userDrainOptions?.retry?.maxDelayMs ?? 1000,
+      },
+    });
+    const handler = async (batch: DrainContext[]) => {
+      await this.sendBatch(batch.map((item) => item.event));
+    };
+
+    return { drain, handler };
   }
 
   private applyLoggerConfig(): void {

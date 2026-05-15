@@ -105,6 +105,26 @@ describe("telemetry", () => {
     });
     await replayTelemetry.flush();
 
+    expect(replayFetch).toHaveBeenCalledOnce();
+    const [replayEndpoint, replayRequest] = replayFetch.mock.calls[0] ?? [];
+    expect(replayEndpoint).toBe("https://telemetry.example.test/ingest");
+    expect(replayRequest).toEqual(
+      expect.objectContaining({
+        method: "POST",
+      })
+    );
+
+    const replayBody = JSON.parse(
+      String((replayRequest as RequestInit).body)
+    ) as Record<string, unknown>[];
+    expect(replayBody).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          event: "one",
+        }),
+      ])
+    );
+
     await expect(
       fs.readFile(path.join(storageDir, queueFileName), "utf-8")
     ).rejects.toThrow();

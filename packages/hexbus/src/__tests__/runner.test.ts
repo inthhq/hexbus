@@ -169,7 +169,10 @@ describe(runCli, () => {
   });
 
   it("dispatches a matched command with lifecycle hooks", async () => {
-    const action = vi.fn(() => Promise.resolve());
+    const action = vi.fn((baseContext: CliContext) => {
+      void baseContext;
+      return Promise.resolve();
+    });
     const command: CliCommand = {
       action,
       description: "Say hello",
@@ -244,7 +247,10 @@ describe(runCli, () => {
   });
 
   it("passes the same telemetry instance through context, hooks, and command actions", async () => {
-    const action = vi.fn(() => Promise.resolve());
+    const action = vi.fn((baseContext: CliContext) => {
+      void baseContext;
+      return Promise.resolve();
+    });
     const command: CliCommand = {
       action,
       description: "Share telemetry",
@@ -272,22 +278,25 @@ describe(runCli, () => {
       rawArgs: ["share"],
     });
 
-    expect(afterContext).toHaveBeenCalledWith(
-      expect.objectContaining({ telemetry: context.telemetry })
-    );
-    expect(beforeCommand).toHaveBeenCalledWith(
-      expect.objectContaining({
-        context: expect.objectContaining({ telemetry: context.telemetry }),
-      })
-    );
-    expect(action).toHaveBeenCalledWith(
-      expect.objectContaining({ telemetry: context.telemetry })
-    );
-    expect(afterCommand).toHaveBeenCalledWith(
-      expect.objectContaining({
-        context: expect.objectContaining({ telemetry: context.telemetry }),
-      })
-    );
+    expect(afterContext).toHaveBeenCalled();
+    const afterContextArg = afterContext.mock.calls[0]?.[0];
+    expect(afterContextArg?.telemetry).toBe(context.telemetry);
+
+    expect(beforeCommand).toHaveBeenCalled();
+    const beforeCommandArg = beforeCommand.mock.calls[0]?.[0] as
+      | { context: CliContext }
+      | undefined;
+    expect(beforeCommandArg?.context.telemetry).toBe(context.telemetry);
+
+    expect(action).toHaveBeenCalled();
+    const actionArg = action.mock.calls[0]?.[0];
+    expect(actionArg?.telemetry).toBe(context.telemetry);
+
+    expect(afterCommand).toHaveBeenCalled();
+    const afterCommandArg = afterCommand.mock.calls[0]?.[0] as
+      | { context: CliContext }
+      | undefined;
+    expect(afterCommandArg?.context.telemetry).toBe(context.telemetry);
   });
 
   it("dispatches nested commands and tracks the command path", async () => {
