@@ -1,5 +1,11 @@
 # hexbus
 
+## 0.6.0
+
+### Minor Changes
+
+- 348452c: Added Evlog
+
 ## 0.5.0
 
 ### Minor Changes
