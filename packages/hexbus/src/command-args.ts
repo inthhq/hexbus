@@ -322,7 +322,12 @@ function assignFlagValue<TFlags extends CommandArgFlagSpecRecord>(
     }
 
     const nextArg = args[index + 1];
-    if (typeof nextArg === "string" && !nextArg.startsWith("-")) {
+    const isNegativeNumberToken =
+      typeof nextArg === "string" && /^-\d+(\.\d+)?$/.test(nextArg);
+    if (
+      typeof nextArg === "string" &&
+      (!nextArg.startsWith("-") || isNegativeNumberToken)
+    ) {
       parsedFlags[entry.key as keyof ParsedCommandArgFlags<TFlags>] =
         nextArg as ParsedCommandArgFlags<TFlags>[keyof ParsedCommandArgFlags<TFlags>];
       return index + 1;

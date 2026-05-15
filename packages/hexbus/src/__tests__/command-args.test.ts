@@ -151,11 +151,20 @@ describe(parseCommandArgs, () => {
         },
       },
     } as const);
+    const negativeNumber = parseCommandArgs(["--reinvestigate", "-1"], {
+      flags: {
+        reinvestigate: {
+          names: ["--reinvestigate"],
+          type: "optional-string",
+        },
+      },
+    } as const);
 
     expect(bare.flags.limit).toBe("1");
     expect(bare.flags.reinvestigate).toBe(true);
     expect(equals.flags.reinvestigate).toBe("2");
     expect(nextArg.flags.reinvestigate).toBe("3");
+    expect(negativeNumber.flags.reinvestigate).toBe("-1");
     expectTypeOf(bare.flags.reinvestigate).toEqualTypeOf<
       string | true | undefined
     >();
