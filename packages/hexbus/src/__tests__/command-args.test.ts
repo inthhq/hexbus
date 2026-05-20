@@ -1,6 +1,10 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 
-import { parseCommandArgs } from "../command-args";
+import {
+  defineCommandArgs,
+  mergeCommandArgs,
+  parseCommandArgs,
+} from "../command-args";
 import { CliError } from "../errors";
 
 function captureCliError(action: () => unknown): CliError {
@@ -289,5 +293,134 @@ describe(parseCommandArgs, () => {
     ).toThrow(
       /Duplicate flag name "--no" for (cache|save) \(negated\) conflicts with (cache|save) \(negated\)/
     );
+  });
+
+  it("composes reusable argument specs and preserves inferred flags", () => {
+    const projectArgs = defineCommandArgs({
+      flags: {
+        projectId: {
+          names: ["--project-id"],
+          type: "string",
+          valueName: "id",
+        },
+      },
+    } as const);
+    const batchingArgs = defineCommandArgs({
+      flags: {
+        concurrency: {
+          min: 1,
+          names: ["--concurrency"],
+          type: "integer",
+        },
+      },
+    } as const);
+    const spec = mergeCommandArgs(projectArgs, batchingArgs);
+    const parsed = parseCommandArgs(
+      ["--project-id", "app", "--concurrency", "4"],
+      spec
+    );
+
+    expect(parsed.flags.projectId).toBe("app");
+    expect(parsed.flags.concurrency).toBe(4);
+    expectTypeOf(parsed.flags.concurrency).toEqualTypeOf<number | undefined>();
+  });
+
+  it("throws for duplicate flag result keys while merging specs", () => {
+    const projectArgs = defineCommandArgs({
+      flags: {
+        projectId: { names: ["--project"], type: "string" },
+      },
+    } as const);
+    const projectIdArgs = defineCommandArgs({
+      flags: {
+        projectId: { names: ["--project-id"], type: "string" },
+      },
+    } as const);
+
+    expect(() => mergeCommandArgs(projectArgs, projectIdArgs)).toThrow(
+      'Duplicate flag key "projectId" while merging command args'
+    );
+  });
+
+  it("parses passthrough args after a separator when enabled", () => {
+    const parsed = parseCommandArgs(
+      ["--project-id", "app", "--", "--child-flag", "value"],
+      {
+        flags: {
+          projectId: { names: ["--project-id"], type: "string" },
+        },
+      } as const,
+      { passthrough: true }
+    );
+
+    expect(parsed.flags.projectId).toBe("app");
+    expect(parsed.passthrough).toStrictEqual(["--child-flag", "value"]);
+  });
+
+  it("coerces integer, duration, enum, and string-list values", () => {
+    const parsed = parseCommandArgs(
+      [
+        "--limit=5",
+        "--timeout",
+        "30s",
+        "--priority",
+        "P1",
+        "--files",
+        "a.ts,b.ts",
+      ],
+      {
+        flags: {
+          files: { names: ["--files"], type: "string-list" },
+          limit: { min: 0, names: ["--limit"], type: "integer" },
+          priority: {
+            names: ["--priority"],
+            type: "enum",
+            values: ["P0", "P1", "P2"],
+          },
+          timeout: { names: ["--timeout"], type: "duration" },
+        },
+      } as const
+    );
+
+    expect(parsed.flags.limit).toBe(5);
+    expect(parsed.flags.timeout).toBe(30_000);
+    expect(parsed.flags.priority).toBe("P1");
+    expect(parsed.flags.files).toStrictEqual(["a.ts", "b.ts"]);
+  });
+
+  it("applies runtime defaults and reports deprecated flag aliases", () => {
+    const warnings: unknown[] = [];
+    const parsed = parseCommandArgs(
+      ["--profile", "fast"],
+      {
+        flags: {
+          modelProfile: {
+            deprecatedNames: [
+              { name: "--profile", replacement: "--model-profile" },
+            ],
+            names: ["--model-profile"],
+            type: "string",
+          },
+          timeout: { names: ["--timeout"], type: "duration" },
+        },
+      } as const,
+      {
+        defaults: {
+          timeout: { source: "amberline.config.ts", value: 1000 },
+        },
+        onWarning: (warning) => warnings.push(warning),
+      }
+    );
+
+    expect(parsed.flags.modelProfile).toBe("fast");
+    expect(parsed.flags.timeout).toBe(1000);
+    expect(warnings).toStrictEqual([
+      {
+        code: "DEPRECATED_FLAG_ALIAS",
+        key: "modelProfile",
+        name: "--profile",
+        replacement: "--model-profile",
+      },
+    ]);
   });
 });

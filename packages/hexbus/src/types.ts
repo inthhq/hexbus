@@ -1,3 +1,5 @@
+import type { DeprecatedAlias, ParseCommandArgsSpec } from "./command-args";
+
 /**
  * Supported logger verbosity levels.
  *
@@ -71,6 +73,36 @@ export interface ParsedArgs {
 }
 
 /**
+ * Command alias accepted during route resolution.
+ */
+export interface CliCommandAlias extends DeprecatedAlias {
+  /**
+   * Whether using the alias should emit a migration warning.
+   */
+  deprecated?: boolean;
+  /**
+   * Whether the alias should be omitted from generated help/docs.
+   *
+   * @default true for deprecated aliases
+   */
+  hidden?: boolean;
+}
+
+/**
+ * Command category used by help, docs, telemetry, and menus.
+ */
+export type CliCommandCategory =
+  | "advanced"
+  | "compatibility"
+  | "operator"
+  | "primary";
+
+/**
+ * Stability marker for a command route.
+ */
+export type CliCommandStability = "deprecated" | "experimental" | "stable";
+
+/**
  * Defines a command or command group that can be rendered in help output and
  * executed with a fully resolved CLI context.
  *
@@ -102,6 +134,10 @@ export interface CliCommand<TContext extends CliContext = CliContext> {
    */
   name: string;
   /**
+   * Alternate command names accepted during route resolution.
+   */
+  aliases?: CliCommandAlias[];
+  /**
    * Short display label for menus or selection prompts.
    */
   label: string;
@@ -113,6 +149,36 @@ export interface CliCommand<TContext extends CliContext = CliContext> {
    * Longer explanation used in help output.
    */
   description: string;
+  /**
+   * Command-local arguments accepted by this route.
+   *
+   * @remarks
+   * `runCli` uses this metadata for help, docs, completions, and route-aware
+   * unknown-option checks. Command actions remain responsible for calling
+   * `parseCommandArgs` when they want parsed values.
+   */
+  args?: ParseCommandArgsSpec;
+  /**
+   * Command-local arguments inherited by all descendants in this command
+   * subtree.
+   */
+  inheritedArgs?: ParseCommandArgsSpec;
+  /**
+   * Help/docs category for this command.
+   */
+  category?: CliCommandCategory;
+  /**
+   * Stability marker for this command route.
+   */
+  stability?: CliCommandStability;
+  /**
+   * Stable telemetry route name. Defaults to the canonical command path.
+   */
+  telemetryName?: string;
+  /**
+   * Optional documentation URL for this route.
+   */
+  docsUrl?: string;
   /**
    * Command implementation.
    *

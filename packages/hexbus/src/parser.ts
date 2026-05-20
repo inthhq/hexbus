@@ -166,6 +166,11 @@ export function parseCliArgs(
       continue;
     }
 
+    if (arg === "--") {
+      potentialCommandArgs.push(...rawArgs.slice(i));
+      break;
+    }
+
     let isFlag = false;
 
     for (const flag of mergedFlags) {
@@ -184,7 +189,7 @@ export function parseCliArgs(
         parsedFlags[primaryName] = true;
       } else if (flag.expectsValue) {
         const nextArg = rawArgs[i + 1];
-        if (nextArg && !knownFlagSet.has(nextArg)) {
+        if (nextArg && nextArg !== "--" && !knownFlagSet.has(nextArg)) {
           parsedFlags[primaryName] = nextArg;
           i++;
         } else {
@@ -209,7 +214,11 @@ export function parseCliArgs(
   const [firstPositional] = potentialCommandArgs;
   if (
     typeof firstPositional === "string" &&
-    commands.some((cmd) => cmd.name === firstPositional)
+    commands.some(
+      (cmd) =>
+        cmd.name === firstPositional ||
+        cmd.aliases?.some((alias) => alias.name === firstPositional)
+    )
   ) {
     commandName = firstPositional;
     commandArgs.push(...potentialCommandArgs.slice(1));
@@ -305,7 +314,11 @@ export function parseSubcommand(
   subcommands: CliCommand[]
 ): { subcommand: CliCommand | undefined; remainingArgs: string[] } {
   const [subcommandName] = args;
-  const subcommand = subcommands.find((cmd) => cmd.name === subcommandName);
+  const subcommand = subcommands.find(
+    (cmd) =>
+      cmd.name === subcommandName ||
+      cmd.aliases?.some((alias) => alias.name === subcommandName)
+  );
 
   if (subcommand) {
     return {

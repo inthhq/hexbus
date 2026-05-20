@@ -11,15 +11,42 @@
 
 export {
   type BooleanCommandArgFlagSpec,
+  type CommandArgDefault,
   type CommandArgFlagSpec,
   type CommandArgFlagSpecRecord,
   type CommandArgPositionSpec,
+  type CommandArgValue,
+  type CommandArgWarning,
+  type DeprecatedAlias,
+  defineCommandArgs,
+  type DurationCommandArgFlagSpec,
+  type EnumCommandArgFlagSpec,
+  type IntegerCommandArgFlagSpec,
+  mergeCommandArgs,
   type OptionalStringCommandArgFlagSpec,
   parseCommandArgs,
+  type ParseCommandArgsOptions,
   type ParseCommandArgsResult,
   type ParseCommandArgsSpec,
+  type ParsedCommandArgFlags,
+  type ParsedCommandArgPositionals,
   type StringCommandArgFlagSpec,
+  type StringListCommandArgFlagSpec,
 } from "./command-args";
+export {
+  commandArgsAcceptFlag,
+  commandArgsHaveEntries,
+  getCommandArgFlagNames,
+  getCommandArgValueHint,
+  getVisibleCommandAliases,
+  type CommandArgScopes,
+  resolveCommandArgScopes,
+} from "./command-tree";
+export {
+  generateCompletion,
+  type CompletionShell,
+  type GenerateCompletionOptions,
+} from "./completions";
 export {
   type CreateContextOptions,
   createCliContext,
@@ -88,6 +115,13 @@ export {
   validLogLevels,
 } from "./logger";
 export {
+  outputModeArgs,
+  parseOutputMode,
+  shouldRenderHumanProgress,
+  shouldRenderJson,
+  type OutputMode,
+} from "./output-mode";
+export {
   formatFlagHelp,
   generateFlagsHelp,
   getFlagValue,
@@ -127,6 +161,11 @@ export {
 } from "./runner";
 export { createSpinner, type Spinner, withSpinner } from "./spinner";
 export {
+  runCliTest,
+  type RunCliTestOptions,
+  type RunCliTestResult,
+} from "./test-harness";
+export {
   createDisabledTelemetry,
   createTelemetry,
   TelemetryEventName,
@@ -134,6 +173,9 @@ export {
   type TelemetryOptions,
 } from "./telemetry";
 export type {
+  CliCommandAlias,
+  CliCommandCategory,
+  CliCommandStability,
   CliCommand,
   CliContext,
   CliFlag,

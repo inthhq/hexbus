@@ -75,6 +75,14 @@ describe(parseCliArgs, () => {
     expect(getFlagValue(parsed.parsedFlags, "logger")).toBe("-1");
   });
 
+  it("stops global flag parsing at passthrough separator", () => {
+    const parsed = parseCliArgs(["setup", "--", "--help"], commands);
+
+    expect(parsed.commandName).toBe("setup");
+    expect(parsed.commandArgs).toStrictEqual(["--", "--help"]);
+    expect(hasFlag(parsed.parsedFlags, "help")).toBeFalsy();
+  });
+
   it("parses subcommands", () => {
     const result = parseSubcommand(
       ["list", "--json"],
