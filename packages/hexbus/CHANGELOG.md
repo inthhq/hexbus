@@ -1,5 +1,11 @@
 # hexbus
 
+## 0.6.2
+
+### Patch Changes
+
+- 0cba85b: Updated flags
+
 ## 0.6.1
 
 ### Patch Changes
