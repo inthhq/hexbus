@@ -41,36 +41,42 @@ Define command metadata, create a context from `process.argv`, then route to the
 
 ```ts
 import {
-	createCliContext,
-	showHelpMenu,
-	globalFlags,
-	type CliCommand,
-} from 'hexbus';
+  createCliContext,
+  showHelpMenu,
+  globalFlags,
+  type CliCommand,
+} from "hexbus";
 
 const commands: CliCommand[] = [
-	{
-		name: 'init',
-		label: 'Initialize',
-		hint: 'Create project files',
-		description: 'Initialize project files.',
-		async action(context) {
-			context.logger.info(`Project root: ${context.projectRoot}`);
-		},
-	},
+  {
+    name: "init",
+    label: "Initialize",
+    hint: "Create project files",
+    description: "Initialize project files.",
+    async action(context) {
+      context.logger.info(`Project root: ${context.projectRoot}`);
+    },
+  },
 ];
 
 const context = await createCliContext({
-	rawArgs: process.argv.slice(2),
-	commands,
-	appName: 'my-cli',
+  rawArgs: process.argv.slice(2),
+  commands,
+  appName: "my-cli",
 });
 
 if (context.flags.help) {
-	showHelpMenu(context, { appName: 'my-cli', version: '0.1.0' }, commands, globalFlags);
-	process.exit(0);
+  showHelpMenu(
+    context,
+    { appName: "my-cli", version: "0.1.0" },
+    commands,
+    globalFlags
+  );
+  process.exit(0);
 }
 
-const command = commands.find((item) => item.name === context.commandName) ?? commands[0];
+const command =
+  commands.find((item) => item.name === context.commandName) ?? commands[0];
 await command.action(context);
 ```
 
@@ -79,9 +85,11 @@ await command.action(context);
 ```bash
 bun add hexbus
 ```
+
 ```bash
 npm install hexbus
 ```
+
 ```bash
 pnpm add hexbus
 ```
@@ -146,29 +154,29 @@ Inth app CLIs can extend the generic context type when they attach additional se
 `parseCommandArgs` runtime `defaults` are execution values only. If help or plan output needs to explain where a default came from, put that label on the arg spec with `defaultDescription`; products can still pass the resolved runtime value separately through `defaults`.
 
 ```ts
-import { defineCommandArgs, mergeCommandArgs, parseCommandArgs } from 'hexbus';
+import { defineCommandArgs, mergeCommandArgs, parseCommandArgs } from "hexbus";
 
 const projectArgs = defineCommandArgs({
   flags: {
-    projectId: { names: ['--project-id'], type: 'string', valueName: 'id' },
+    projectId: { names: ["--project-id"], type: "string", valueName: "id" },
   },
 } as const);
 
 const runArgs = mergeCommandArgs(projectArgs, {
   flags: {
     concurrency: {
-      names: ['--concurrency'],
-      type: 'integer',
+      names: ["--concurrency"],
+      type: "integer",
       min: 1,
-      defaultDescription: 'from amberline.config.ts',
+      defaultDescription: "from amberline.config.ts",
     },
-    timeout: { names: ['--timeout'], type: 'duration' },
+    timeout: { names: ["--timeout"], type: "duration" },
   },
 } as const);
 
 const parsed = parseCommandArgs(context.commandArgs, runArgs, {
   defaults: {
-    concurrency: { value: 4, source: 'amberline.config.ts' },
+    concurrency: { value: 4, source: "amberline.config.ts" },
   },
   passthrough: true,
 });

@@ -35,36 +35,41 @@ Reusable codemod harness for Inth app CLIs built on Hexbus. This package owns th
 Create codemod definitions in your Inth app CLI, then pass them to the shared runner:
 
 ```ts
-import { defineCodemod, runCodemods, createCodemodProject } from '@inth/hexbus-codemods';
+import {
+  defineCodemod,
+  runCodemods,
+  createCodemodProject,
+} from "@inth/hexbus-codemods";
 
 const renameConfig = defineCodemod({
-	id: 'rename-config',
-	label: 'Rename config option',
-	hint: 'Updates old config keys to the new names',
-	versioning: { fromRange: '<2.0.0' },
-	async run(_context, options) {
-		const project = await createCodemodProject(options.projectRoot, {
-			dryRun: options.dryRun,
-		});
+  id: "rename-config",
+  label: "Rename config option",
+  hint: "Updates old config keys to the new names",
+  versioning: { fromRange: "<2.0.0" },
+  async run(_context, options) {
+    const project = await createCodemodProject(options.projectRoot, {
+      dryRun: options.dryRun,
+    });
 
-		const changedFiles: string[] = [];
-		for (const sourceFile of project.sourceFiles) {
-			const before = sourceFile.getFullText();
-			sourceFile.replaceWithText(before.replaceAll('oldConfig', 'newConfig'));
-			if (sourceFile.getFullText() !== before) {
-				changedFiles.push(sourceFile.getFilePath());
-			}
-		}
+    const changedFiles: string[] = [];
+    for (const sourceFile of project.sourceFiles) {
+      const before = sourceFile.getFullText();
+      sourceFile.replaceWithText(before.replaceAll("oldConfig", "newConfig"));
+      if (sourceFile.getFullText() !== before) {
+        changedFiles.push(sourceFile.getFilePath());
+      }
+    }
 
-		await project.save();
-		return { changedFiles, errors: [] };
-	},
+    await project.save();
+    return { changedFiles, errors: [] };
+  },
 });
 
 await runCodemods(context, [renameConfig], {
-	brandName: 'my app',
-	dryRun: Boolean(context.flags['dry-run']),
-	detectInstalledVersion: async (projectRoot) => readInstalledVersion(projectRoot),
+  brandName: "my app",
+  dryRun: Boolean(context.flags["dry-run"]),
+  detectInstalledVersion: async (projectRoot) =>
+    readInstalledVersion(projectRoot),
 });
 ```
 
@@ -73,9 +78,11 @@ await runCodemods(context, [renameConfig], {
 ```bash
 bun add @inth/hexbus-codemods hexbus
 ```
+
 ```bash
 npm install @inth/hexbus-codemods hexbus
 ```
+
 ```bash
 pnpm add @inth/hexbus-codemods hexbus
 ```
@@ -114,14 +121,11 @@ Codemods can declare simple version constraints with `fromRange` and `toRange`. 
 Fixture helpers create temporary project directories, write project-relative files, run your callback, and clean up by default.
 
 ```ts
-import { readFixtureFile, withTempProject } from '@inth/hexbus-codemods';
+import { readFixtureFile, withTempProject } from "@inth/hexbus-codemods";
 
-await withTempProject(
-	{ 'src/app.ts': 'oldConfig();' },
-	async (projectRoot) => {
-		await runMyCodemod(projectRoot);
-		const output = await readFixtureFile(projectRoot, 'src/app.ts');
-		expect(output).toContain('newConfig');
-	}
-);
+await withTempProject({ "src/app.ts": "oldConfig();" }, async (projectRoot) => {
+  await runMyCodemod(projectRoot);
+  const output = await readFixtureFile(projectRoot, "src/app.ts");
+  expect(output).toContain("newConfig");
+});
 ```
