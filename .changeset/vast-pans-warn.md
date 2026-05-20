@@ -1,0 +1,5 @@
+---
+"hexbus": patch
+---
+
+Updated flags
