@@ -158,7 +158,7 @@ Inside a command action receiving `context`:
 ```ts
 import { defineCommandArgs, mergeCommandArgs, parseCommandArgs } from "hexbus";
 
-const context = { commandArgs: ['--project-id', 'app', '--', '--child-flag'] };
+const context = { commandArgs: ["--project-id", "app", "--", "--child-flag"] };
 
 const projectArgs = defineCommandArgs({
   flags: {
