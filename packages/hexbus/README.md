@@ -153,8 +153,12 @@ Inth app CLIs can extend the generic context type when they attach additional se
 
 `parseCommandArgs` runtime `defaults` are execution values only. If help or plan output needs to explain where a default came from, put that label on the arg spec with `defaultDescription`; products can still pass the resolved runtime value separately through `defaults`.
 
+Inside a command action receiving `context`:
+
 ```ts
 import { defineCommandArgs, mergeCommandArgs, parseCommandArgs } from "hexbus";
+
+const context = { commandArgs: ['--project-id', 'app', '--', '--child-flag'] };
 
 const projectArgs = defineCommandArgs({
   flags: {

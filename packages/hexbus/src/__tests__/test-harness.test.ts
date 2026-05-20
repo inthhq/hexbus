@@ -26,4 +26,27 @@ describe(runCliTest, () => {
     expect(result.stdout).toContain("args: --mode,server");
     expect(result.type).toBe("command_executed");
   });
+
+  it("captures failed command stderr and exit code", async () => {
+    const command: CliCommand = {
+      action: (context) => {
+        context.logger.error("review failed");
+        return Promise.reject(new Error("review failed"));
+      },
+      description: "Review repo",
+      hint: "Review",
+      label: "Review",
+      name: "review",
+    };
+
+    const result = await runCliTest({
+      args: ["review", "--mode", "server"],
+      commands: [command],
+    });
+
+    expect(result.commandPath).toStrictEqual(["review"]);
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("review failed");
+    expect(result.type).toBe("command_failed");
+  });
 });

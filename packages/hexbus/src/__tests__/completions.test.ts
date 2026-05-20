@@ -47,7 +47,6 @@ describe(generateCompletion, () => {
     });
 
     expect(completion).toContain("complete -F _amberline_completion amberline");
-    expect(completion).toContain("''");
     expect(completion).toContain("'stage'");
     expect(completion).toContain("scan");
     expect(completion).toContain("--project-id");

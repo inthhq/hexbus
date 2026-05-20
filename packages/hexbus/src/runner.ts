@@ -467,8 +467,14 @@ function createDispatchNoCommandBehavior<
   }
 
   return {
-    action: ({ commandNames, commands, context }) =>
-      showRunnerHelp(context, options, commands as CliCommand[], commandNames),
+    action: ({ commandNames, commandPath, commands, context }) =>
+      showRunnerHelp(
+        context,
+        options,
+        commands as CliCommand[],
+        commandNames,
+        commandPath as CliCommand[]
+      ),
     mode: "help",
   };
 }
@@ -639,12 +645,18 @@ function dispatchRunnerCommand<
     },
     noCommand: createDispatchNoCommandBehavior(options, rawArgs),
     unknownCommand: {
-      action: ({ commandNames, commands, context: commandContext }) =>
+      action: ({
+        commandNames,
+        commandPath,
+        commands,
+        context: commandContext,
+      }) =>
         showRunnerHelp(
           commandContext,
           options,
           commands as CliCommand[],
-          commandNames
+          commandNames,
+          commandPath as CliCommand[]
         ),
     },
   });

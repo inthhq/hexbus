@@ -1,6 +1,6 @@
 import { createTestContext } from "./context";
 import { dispatchCommand, resolveCommandRoute } from "./dispatch";
-import type { CliCommand, CliContext, PackageInfo } from "./types";
+import type { CliCommand, CliContext, CliLogger, PackageInfo } from "./types";
 
 /**
  * Options for a lightweight command routing test.
@@ -23,7 +23,7 @@ export interface RunCliTestResult {
   type: string;
 }
 
-function createCapturedLogger(stdout: string[], stderr: string[]) {
+function createCapturedLogger(stdout: string[], stderr: string[]): CliLogger {
   return {
     debug(message: string) {
       stdout.push(message);
@@ -75,6 +75,11 @@ export async function runCliTest<TContext extends CliContext = CliContext>(
   const context = createTestContext({
     commandArgs,
     commandName,
+    fs: {
+      ...createTestContext().fs,
+      getPackageInfo: () =>
+        options.packageInfo ?? { name: "test", version: "0.0.0" },
+    },
     logger: createCapturedLogger(stdout, stderr),
     ...(options.context as Partial<CliContext> | undefined),
   }) as TContext;
