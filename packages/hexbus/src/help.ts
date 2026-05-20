@@ -1,3 +1,5 @@
+import type { ParseCommandArgsSpec } from "./command-args";
+import { getCommandArgValueHint } from "./command-tree";
 import type { CliCommand, CliContext, CliFlag } from "./types";
 
 /**
@@ -20,6 +22,43 @@ export interface ShowHelpMenuOptions {
    * Command path whose children are being rendered.
    */
   commandPath?: string[];
+  /**
+   * Inherited command-local args for the selected command path.
+   */
+  inheritedArgs?: ParseCommandArgsSpec;
+  /**
+   * Local args for the selected leaf command.
+   */
+  localArgs?: ParseCommandArgsSpec;
+}
+
+function formatCommandArgRows(spec: ParseCommandArgsSpec): string {
+  return Object.values(spec.flags ?? {})
+    .map((flag) => {
+      const valueHint = getCommandArgValueHint(flag);
+      const defaultText = flag.defaultDescription
+        ? ` default: ${flag.defaultDescription}`
+        : "";
+      return `  ${flag.names.join(", ")}${valueHint}\t${flag.description ?? ""}${defaultText}`;
+    })
+    .join("\n");
+}
+
+function formatPositionalRows(spec: ParseCommandArgsSpec): string {
+  return (spec.positionals ?? [])
+    .map((positional) => {
+      const requiredText = positional.required ? " required" : "";
+      const valueName = positional.valueName ?? positional.name;
+      return `  <${valueName}>\t${positional.description ?? ""}${requiredText}`;
+    })
+    .join("\n");
+}
+
+function formatSection(title: string, rows: string): string {
+  if (!rows) {
+    return "";
+  }
+  return `\n\n${title}:\n${rows}`;
 }
 
 /**
@@ -53,10 +92,18 @@ export function showHelpMenu(
       return `  ${flag.names.join(", ")}${valueHint}\t${flag.description}`;
     })
     .join("\n");
+  const inheritedArgRows = formatCommandArgRows(options.inheritedArgs ?? {});
+  const localArgRows = formatCommandArgRows(options.localArgs ?? {});
+  const positionalRows = formatPositionalRows(options.localArgs ?? {});
   const docsLine = options.docsUrl ? `\n\nDocs:\n  ${options.docsUrl}` : "";
+  const commandsSection = formatSection("Commands", commandRows);
+  const inheritedSection = formatSection("Inherited Flags", inheritedArgRows);
+  const localSection = formatSection("Command Flags", localArgRows);
+  const positionalSection = formatSection("Positionals", positionalRows);
+  const globalSection = formatSection("Global Flags", flagRows);
 
   context.logger.note(
-    `${options.appName} ${options.version}\n\nUsage:\n  ${commandPrefix}${commandPlaceholder} [options]\n\nCommands:\n${commandRows}\n\nGlobal Flags:\n${flagRows}${docsLine}`,
+    `${options.appName} ${options.version}\n\nUsage:\n  ${commandPrefix}${commandPlaceholder} [options]${commandsSection}${inheritedSection}${localSection}${positionalSection}${globalSection}${docsLine}`,
     `${options.appName} CLI`
   );
 }

@@ -1,3 +1,8 @@
+import {
+  commandArgsAcceptFlag,
+  commandArgsHaveEntries,
+  resolveCommandArgScopes,
+} from "./command-tree";
 import { createCliContext } from "./context";
 import type { CreateContextOptions } from "./context";
 import { dispatchCommand, resolveCommandRoute } from "./dispatch";
@@ -290,18 +295,68 @@ function findUnknownCommandOption(context: CliContext): string | undefined {
     return undefined;
   }
 
-  return context.commandArgs.find((arg) => /^-{1,2}[A-Za-z]/.test(arg));
+  for (const arg of context.commandArgs) {
+    if (arg === "--") {
+      return undefined;
+    }
+    if (/^-{1,2}[A-Za-z]/.test(arg)) {
+      return arg;
+    }
+  }
+
+  return undefined;
+}
+
+function findRouteUnknownCommandOption(
+  context: CliContext,
+  commands: CliCommand[]
+): string | undefined {
+  if (!context.commandName) {
+    return undefined;
+  }
+
+  const route = resolveCommandRoute(context, commands);
+  if (!route) {
+    return findUnknownCommandOption(context);
+  }
+
+  const scopes = resolveCommandArgScopes(route.commandPath);
+  for (const arg of route.remainingArgs) {
+    if (arg === "--") {
+      return undefined;
+    }
+    if (
+      /^-{1,2}[A-Za-z]/.test(arg) &&
+      !commandArgsAcceptFlag(scopes.merged, arg)
+    ) {
+      return arg;
+    }
+  }
+
+  return undefined;
 }
 
 function createHelpOptions(
   options: Pick<RunCliOptions, "appName" | "help" | "packageInfo">,
-  commandNames: string[] = []
+  commandNames: string[] = [],
+  commandPath: CliCommand[] = []
 ): ShowHelpMenuOptions {
+  const scopes =
+    commandPath.length > 0 ? resolveCommandArgScopes(commandPath) : undefined;
   const helpOptions: ShowHelpMenuOptions = {
     appName: options.appName,
     docsUrl: options.help?.docsUrl,
     version: options.packageInfo.version,
   };
+
+  if (scopes) {
+    if (commandArgsHaveEntries(scopes.inherited)) {
+      helpOptions.inheritedArgs = scopes.inherited;
+    }
+    if (commandArgsHaveEntries(scopes.local)) {
+      helpOptions.localArgs = scopes.local;
+    }
+  }
 
   if (commandNames.length > 0) {
     helpOptions.commandPath = commandNames;
@@ -335,11 +390,12 @@ function showRunnerHelp<
   context: TContext,
   options: RunCliOptions<TPackage, TContext>,
   commands: CliCommand[] = options.commands as CliCommand[],
-  commandNames: string[] = []
+  commandNames: string[] = [],
+  commandPath: CliCommand[] = []
 ): void {
   showHelpMenu(
     context,
-    createHelpOptions(options, commandNames),
+    createHelpOptions(options, commandNames, commandPath),
     commands,
     getHelpFlags(options.help?.flags, options.context?.globalFlags)
   );
@@ -359,7 +415,19 @@ function showScopedRunnerHelp<
       context,
       options,
       route.command.subcommands as CliCommand[],
-      route.commandNames
+      route.commandNames,
+      route.commandPath as CliCommand[]
+    );
+    return;
+  }
+
+  if (route) {
+    showRunnerHelp(
+      context,
+      options,
+      [],
+      route.commandNames,
+      route.commandPath as CliCommand[]
     );
     return;
   }
@@ -736,7 +804,10 @@ export async function runCli<
       return;
     }
 
-    const unknownOption = findUnknownCommandOption(state.context);
+    const unknownOption = findRouteUnknownCommandOption(
+      state.context,
+      options.commands as CliCommand[]
+    );
     if (unknownOption) {
       showRunnerHelp(state.context, options);
       throw new CliError("UNKNOWN_OPTION", { details: unknownOption });

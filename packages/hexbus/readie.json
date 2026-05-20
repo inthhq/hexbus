@@ -7,11 +7,13 @@
   "includeTableOfContents": true,
   "features": [
     "Typed `CliContext` creation with command metadata, parsed flags, project root, package manager detection, framework detection, file-system helpers, config loading, telemetry, and confirmation prompts.",
-    "Shared argument parser and global flags for help, version, logging, color, config, confirmation, telemetry, and force behavior.",
+    "Shared global parser plus command-local argument specs with inherited group args, reusable option groups, passthrough parsing, typed coercion, and config-backed defaults.",
+    "Command-local help rendering for global flags, inherited flags, leaf flags, positionals, defaults, and route docs.",
     "Consistent logger, spinner, intro, help, and error rendering built on top of `@clack/prompts`.",
+    "Deprecated command and flag aliases, route metadata, output-mode conventions, and static shell completion generation.",
     "Configurable error catalog and best-effort telemetry hooks that Inth app CLIs can extend or disable.",
     "Project, framework, package manager, install source, and registry update helpers for better CLI guidance.",
-    "Test helpers for creating lightweight contexts without standing up a full CLI invocation."
+    "Test helpers for creating lightweight contexts and exercising command routing without standing up a full CLI invocation."
   ],
   "prerequisites": [
     "Node.js 18.17.0 or later",
@@ -26,7 +28,11 @@
   "quickStart": "Define command metadata, create a context from `process.argv`, then route to the selected command:\n\n```ts\nimport {\n\tcreateCliContext,\n\tshowHelpMenu,\n\tglobalFlags,\n\ttype CliCommand,\n} from 'hexbus';\n\nconst commands: CliCommand[] = [\n\t{\n\t\tname: 'init',\n\t\tlabel: 'Initialize',\n\t\thint: 'Create project files',\n\t\tdescription: 'Initialize project files.',\n\t\tasync action(context) {\n\t\t\tcontext.logger.info(`Project root: ${context.projectRoot}`);\n\t\t},\n\t},\n];\n\nconst context = await createCliContext({\n\trawArgs: process.argv.slice(2),\n\tcommands,\n\tappName: 'my-cli',\n});\n\nif (context.flags.help) {\n\tshowHelpMenu(context, { appName: 'my-cli', version: '0.1.0' }, commands, globalFlags);\n\tprocess.exit(0);\n}\n\nconst command = commands.find((item) => item.name === context.commandName) ?? commands[0];\nawait command.action(context);\n```",
   "usage": [
     "Use `parseCliArgs` when you only need normalized command names, command args, and global flags.",
+    "Use `defineCommandArgs`, `mergeCommandArgs`, and `parseCommandArgs` for command-local flags, inherited group options, typed values, defaults, and passthrough args after `--`.",
     "Use `createCliContext` when command execution needs the full runtime context.",
+    "Use `generateCompletion` to emit static `bash`, `zsh`, or `fish` completions from the command tree.",
+    "Use `outputModeArgs` and `parseOutputMode` when a command needs consistent human, JSON, or quiet output behavior.",
+    "Use `runCliTest` for fast command dispatch tests before adding shell-heavy e2e coverage.",
     "Use `CliError`, `extendErrorCatalog`, and `withErrorHandling` to keep app-specific failures consistent with shared CLI output.",
     "Use `displayIntro`, `showHelpMenu`, `createSpinner`, and `createCliLogger` for consistent terminal UX.",
     "Use `isVersionRequest`, `printVersionInfo`, and `startBackgroundUpdateCheck` for fast `-v` / `--version` handling and install-source-aware update hints."
@@ -70,8 +76,10 @@
     }
   ],
   "customSections": {
-    "Core Exports": "- Context: `createCliContext`, `createTestContext`, `CreateContextOptions`\n- Parser: `parseCliArgs`, `parseSubcommand`, `hasFlag`, `getFlagValue`, `globalFlags`\n- Terminal UX: `createCliLogger`, `createSpinner`, `withSpinner`, `displayIntro`, `showHelpMenu`\n- Errors: `CliError`, `createErrorHandlers`, `extendErrorCatalog`, `withErrorHandling`\n- Detection: `detectProjectRoot`, `detectPackageManager`, `detectFramework`, `getInstallCommand`, `getRunCommand`, `getExecCommand`\n- Telemetry: `createTelemetry`, `createDisabledTelemetry`, `TelemetryEventName`\n- Updates: `isVersionRequest`, `printVersionInfo`, `checkForUpdate`, `startBackgroundUpdateCheck`, `formatUpdateHint`",
+    "Core Exports": "- Context: `createCliContext`, `createTestContext`, `CreateContextOptions`\n- Parser: `parseCliArgs`, `parseSubcommand`, `defineCommandArgs`, `mergeCommandArgs`, `parseCommandArgs`, `hasFlag`, `getFlagValue`, `globalFlags`\n- Command tree: `resolveCommandArgScopes`, `getCommandArgFlagNames`, `commandArgsAcceptFlag`\n- Terminal UX: `createCliLogger`, `createSpinner`, `withSpinner`, `displayIntro`, `showHelpMenu`\n- Output: `outputModeArgs`, `parseOutputMode`, `shouldRenderHumanProgress`, `shouldRenderJson`\n- Completions: `generateCompletion`\n- Tests: `runCliTest`\n- Errors: `CliError`, `createErrorHandlers`, `extendErrorCatalog`, `withErrorHandling`\n- Detection: `detectProjectRoot`, `detectPackageManager`, `detectFramework`, `getInstallCommand`, `getRunCommand`, `getExecCommand`\n- Telemetry: `createTelemetry`, `createDisabledTelemetry`, `TelemetryEventName`\n- Updates: `isVersionRequest`, `printVersionInfo`, `checkForUpdate`, `startBackgroundUpdateCheck`, `formatUpdateHint`",
     "Context Shape": "`createCliContext` resolves the common services command actions usually need: logger, parsed flags, command args, project root, framework metadata, package manager commands, config helpers, file-system helpers, telemetry, confirmation prompts, and shared error handlers.\n\nInth app CLIs can extend the generic context type when they attach additional services before invoking command actions.",
+    "Command Args": "`CliCommand` can declare `args` for leaf command behavior and `inheritedArgs` for command-family behavior. `runCli` uses this metadata for scoped help, route-aware option checks, docs, and completions, while command actions still call `parseCommandArgs(context.commandArgs, spec)` when they need parsed values.\n\n`parseCommandArgs` runtime `defaults` are execution values only. If help or plan output needs to explain where a default came from, put that label on the arg spec with `defaultDescription`; products can still pass the resolved runtime value separately through `defaults`.\n\n```ts\nimport { defineCommandArgs, mergeCommandArgs, parseCommandArgs } from 'hexbus';\n\nconst projectArgs = defineCommandArgs({\n  flags: {\n    projectId: { names: ['--project-id'], type: 'string', valueName: 'id' },\n  },\n} as const);\n\nconst runArgs = mergeCommandArgs(projectArgs, {\n  flags: {\n    concurrency: {\n      names: ['--concurrency'],\n      type: 'integer',\n      min: 1,\n      defaultDescription: 'from amberline.config.ts',\n    },\n    timeout: { names: ['--timeout'], type: 'duration' },\n  },\n} as const);\n\nconst parsed = parseCommandArgs(context.commandArgs, runArgs, {\n  defaults: {\n    concurrency: { value: 4, source: 'amberline.config.ts' },\n  },\n  passthrough: true,\n});\n```",
+    "Route Metadata And Compatibility": "Commands can declare `aliases`, `category`, `stability`, `telemetryName`, and `docsUrl`. Deprecated command aliases warn when routed, and deprecated flag aliases can report warnings through `parseCommandArgs` without writing directly to stdout.",
     "Update Checks": "`hexbus` supports fast version requests before full context creation. Use `isVersionRequest` and `printVersionInfo` for `-v` / `--version`, then call `startBackgroundUpdateCheck` during normal command execution to show cached update hints and refresh stale registry data in the background."
   },
   "support": [

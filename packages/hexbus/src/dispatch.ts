@@ -1,5 +1,5 @@
 import { promptSelect } from "./prompts";
-import type { CliCommand, CliContext } from "./types";
+import type { CliCommand, CliCommandAlias, CliContext } from "./types";
 
 type MaybePromise<T> = T | Promise<T>;
 
@@ -37,6 +37,20 @@ export interface CommandRoute<TContext extends CliContext = CliContext> {
    * Positional args left after the command path has been consumed.
    */
   remainingArgs: string[];
+  /**
+   * Deprecated command aliases encountered while resolving the route.
+   */
+  warnings: CommandRouteWarning<TContext>[];
+}
+
+/**
+ * Route warning emitted for compatibility aliases.
+ */
+export interface CommandRouteWarning<TContext extends CliContext = CliContext> {
+  alias: CliCommandAlias;
+  command: CliCommand<TContext>;
+  type: "deprecated_command_alias";
+  usedName: string;
 }
 
 interface UnknownCommandRoute<TContext extends CliContext = CliContext> {
@@ -461,6 +475,47 @@ function hasSubcommandToken(value: string | undefined): value is string {
   return typeof value === "string" && !value.startsWith("-");
 }
 
+function getCommandAlias<TContext extends CliContext>(
+  command: CliCommand<TContext>,
+  commandName: string
+): CliCommandAlias | undefined {
+  return command.aliases?.find((alias) => alias.name === commandName);
+}
+
+function matchesCommandName<TContext extends CliContext>(
+  command: CliCommand<TContext>,
+  commandName: string
+): boolean {
+  return (
+    command.name === commandName ||
+    getCommandAlias(command, commandName) !== undefined
+  );
+}
+
+function getAliasWarning<TContext extends CliContext>(
+  command: CliCommand<TContext>,
+  commandName: string
+): CommandRouteWarning<TContext> | undefined {
+  const alias = getCommandAlias(command, commandName);
+  if (!alias?.deprecated) {
+    return undefined;
+  }
+
+  return {
+    alias,
+    command,
+    type: "deprecated_command_alias",
+    usedName: commandName,
+  };
+}
+
+function renderAliasWarning<TContext extends CliContext>(
+  warning: CommandRouteWarning<TContext>
+): string {
+  const replacement = warning.alias.replacement ?? warning.command.name;
+  return `Command "${warning.usedName}" is deprecated. Use "${replacement}" instead.`;
+}
+
 /**
  * Finds a command by name.
  *
@@ -480,7 +535,8 @@ export function findCommand<TContext extends CliContext>(
   const includeHidden = options.includeHidden ?? true;
   return commands.find(
     (command) =>
-      command.name === commandName && (includeHidden || !command.hidden)
+      matchesCommandName(command, commandName) &&
+      (includeHidden || !command.hidden)
   );
 }
 
@@ -508,6 +564,11 @@ function resolveCommandRouteState<TContext extends CliContext>(
   }
 
   const commandPath = [command];
+  const warnings: CommandRouteWarning<TContext>[] = [];
+  const topLevelWarning = getAliasWarning(command, context.commandName ?? "");
+  if (topLevelWarning) {
+    warnings.push(topLevelWarning);
+  }
   let currentCommand = command;
   let remainingArgs = context.commandArgs;
 
@@ -532,6 +593,10 @@ function resolveCommandRouteState<TContext extends CliContext>(
     }
 
     commandPath.push(subcommand);
+    const warning = getAliasWarning(subcommand, nextArg);
+    if (warning) {
+      warnings.push(warning);
+    }
     currentCommand = subcommand;
     remainingArgs = remainingArgs.slice(1);
   }
@@ -542,6 +607,7 @@ function resolveCommandRouteState<TContext extends CliContext>(
       commandNames: getCommandNames(commandPath),
       commandPath,
       remainingArgs,
+      warnings,
     },
     type: "matched",
   };
@@ -570,6 +636,10 @@ async function runCommand<TContext extends CliContext>(
 
     if (!action) {
       return { command, commandNames, commandPath, type: "command_selected" };
+    }
+
+    for (const warning of route.warnings) {
+      commandContext.logger.warn(renderAliasWarning(warning));
     }
 
     await action(commandContext);
@@ -728,6 +798,7 @@ async function runNoCommand<TContext extends CliContext>(
       commandNames: [...commandNames, selection.command.name],
       commandPath: [...commandPath, selection.command],
       remainingArgs: [],
+      warnings: [],
     };
 
     if (!selection.command.action) {

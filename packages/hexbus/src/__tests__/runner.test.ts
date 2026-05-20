@@ -426,6 +426,127 @@ describe(runCli, () => {
     );
   });
 
+  it("renders command-local help for leaf commands", async () => {
+    const migrateCommand: CliCommand = {
+      action: vi.fn(() => Promise.resolve()),
+      args: {
+        flags: {
+          limit: {
+            description: "Maximum migrations",
+            names: ["--limit"],
+            type: "integer",
+          },
+        },
+      },
+      description: "Run migrations",
+      hint: "Migrate",
+      label: "Migrate",
+      name: "migrate",
+    };
+    const toolsCommand: CliCommand = {
+      description: "Developer tools",
+      hint: "Tools",
+      inheritedArgs: {
+        flags: {
+          root: {
+            description: "Project root",
+            names: ["--root"],
+            type: "string",
+          },
+        },
+      },
+      label: "Tools",
+      name: "tools",
+      subcommands: [migrateCommand],
+    };
+    const context = createContext({
+      commandArgs: ["migrate"],
+      commandName: "tools",
+      flags: { help: true },
+    });
+    mocks.createCliContext.mockResolvedValue(context);
+
+    await runCli({
+      appName: "test-cli",
+      commands: [toolsCommand],
+      packageInfo,
+      rawArgs: ["tools", "migrate", "--help"],
+    });
+
+    expect(mocks.showHelpMenu).toHaveBeenCalledWith(
+      context,
+      expect.objectContaining({
+        commandPath: ["tools", "migrate"],
+        inheritedArgs: toolsCommand.inheritedArgs,
+        localArgs: migrateCommand.args,
+      }),
+      [],
+      expect.any(Array)
+    );
+  });
+
+  it("allows declared command-local options before dispatch", async () => {
+    const action = vi.fn(() => Promise.resolve());
+    const command: CliCommand = {
+      action,
+      args: {
+        flags: {
+          mode: { names: ["--mode"], type: "string" },
+        },
+      },
+      description: "Review",
+      hint: "Review",
+      label: "Review",
+      name: "review",
+    };
+    const context = createContext({
+      commandArgs: ["--mode", "server"],
+      commandName: "review",
+    });
+    mocks.createCliContext.mockResolvedValue(context);
+
+    await runCli({
+      appName: "test-cli",
+      commands: [command],
+      packageInfo,
+      rawArgs: ["review", "--mode", "server"],
+    });
+
+    expect(action).toHaveBeenCalled();
+    expect(context.error.handleError).not.toHaveBeenCalled();
+  });
+
+  it("allows passthrough options after separator before dispatch", async () => {
+    const action = vi.fn(() => Promise.resolve());
+    const command: CliCommand = {
+      action,
+      args: {
+        flags: {
+          projectId: { names: ["--project-id"], type: "string" },
+        },
+      },
+      description: "Stage",
+      hint: "Stage",
+      label: "Stage",
+      name: "stage",
+    };
+    const context = createContext({
+      commandArgs: ["--project-id", "app", "--", "--child-flag"],
+      commandName: "stage",
+    });
+    mocks.createCliContext.mockResolvedValue(context);
+
+    await runCli({
+      appName: "test-cli",
+      commands: [command],
+      packageInfo,
+      rawArgs: ["stage", "--project-id", "app", "--", "--child-flag"],
+    });
+
+    expect(action).toHaveBeenCalled();
+    expect(context.error.handleError).not.toHaveBeenCalled();
+  });
+
   it("tracks unknown commands and falls back to help", async () => {
     const context = createContext({
       commandArgs: ["missing"],

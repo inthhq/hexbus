@@ -9,28 +9,25 @@ Opinionated CLI framework for Inth apps. `hexbus` gives Inth app CLIs a small, t
 - [Quick Start](#quick-start)
 - [Installation](#installation)
 - [Usage](#usage)
-- [Dispatch And Selection](#dispatch-and-selection)
-- [Interactive Prompts](#interactive-prompts)
-- [Command Trees](#command-trees)
-- [Command-Local Args](#command-local-args)
 - [Global Flags](#global-flags)
 - [Support](#support)
 - [License](#license)
 - [Core Exports](#core-exports)
 - [Context Shape](#context-shape)
+- [Command Args](#command-args)
+- [Route Metadata And Compatibility](#route-metadata-and-compatibility)
 - [Update Checks](#update-checks)
 
 ## Key Features
 
-- `runCli` lifecycle runner for package metadata, version output, context creation, update hints, help, intro, command dispatch, hooks, telemetry flush, and shutdown.
-- Shared `dispatchCommand`, `resolveCommandRoute`, and `selectCommand` helpers for command lookup, command-tree routing, unknown command handling, no-command behavior, and interactive command menus.
 - Typed `CliContext` creation with command metadata, parsed flags, project root, package manager detection, framework detection, file-system helpers, config loading, telemetry, and confirmation prompts.
-- Shared argument parser and global flags for help, version, logging, color, config, confirmation, telemetry, and force behavior.
-- Command-local argument parsing for validated per-command flags, defaults, aliases, negated booleans, and positionals.
-- Consistent logger, prompt helpers, spinner, intro, help, color, figlet, and error rendering built on Hexbus' pinned terminal UX dependencies.
+- Shared global parser plus command-local argument specs with inherited group args, reusable option groups, passthrough parsing, typed coercion, and config-backed defaults.
+- Command-local help rendering for global flags, inherited flags, leaf flags, positionals, defaults, and route docs.
+- Consistent logger, spinner, intro, help, and error rendering built on top of `@clack/prompts`.
+- Deprecated command and flag aliases, route metadata, output-mode conventions, and static shell completion generation.
 - Configurable error catalog and best-effort telemetry hooks that Inth app CLIs can extend or disable.
 - Project, framework, package manager, install source, and registry update helpers for better CLI guidance.
-- Test helpers for creating lightweight contexts without standing up a full CLI invocation.
+- Test helpers for creating lightweight contexts and exercising command routing without standing up a full CLI invocation.
 
 ## Prerequisites
 
@@ -40,43 +37,41 @@ Opinionated CLI framework for Inth apps. `hexbus` gives Inth app CLIs a small, t
 
 ## Quick Start
 
-Define command metadata, then let `runCli` own the standard invocation lifecycle:
+Define command metadata, create a context from `process.argv`, then route to the selected command:
 
 ```ts
-import { runCli, type CliCommand } from "hexbus";
+import {
+	createCliContext,
+	showHelpMenu,
+	globalFlags,
+	type CliCommand,
+} from 'hexbus';
 
 const commands: CliCommand[] = [
-  {
-    name: "init",
-    label: "Initialize",
-    hint: "Create project files",
-    description: "Initialize project files.",
-    async action(context) {
-      context.logger.info(`Project root: ${context.projectRoot}`);
-    },
-  },
+	{
+		name: 'init',
+		label: 'Initialize',
+		hint: 'Create project files',
+		description: 'Initialize project files.',
+		async action(context) {
+			context.logger.info(`Project root: ${context.projectRoot}`);
+		},
+	},
 ];
 
-await runCli({
-  appName: "my-cli",
-  commands,
-  packageInfo: {
-    name: "@acme/my-cli",
-    version: "0.1.0",
-  },
-  context: {
-    configName: "my-cli",
-  },
-  intro: {
-    tagline: "Project automation for Acme apps.",
-  },
-  help: {
-    docsUrl: "https://docs.example.com/my-cli",
-  },
-  noCommand: {
-    mode: "interactive",
-  },
+const context = await createCliContext({
+	rawArgs: process.argv.slice(2),
+	commands,
+	appName: 'my-cli',
 });
+
+if (context.flags.help) {
+	showHelpMenu(context, { appName: 'my-cli', version: '0.1.0' }, commands, globalFlags);
+	process.exit(0);
+}
+
+const command = commands.find((item) => item.name === context.commandName) ?? commands[0];
+await command.action(context);
 ```
 
 ## Installation
@@ -84,150 +79,24 @@ await runCli({
 ```bash
 bun add hexbus
 ```
-
 ```bash
 npm install hexbus
 ```
-
 ```bash
 pnpm add hexbus
 ```
 
 ## Usage
 
-1. Use `runCli` when a product CLI wants the standard lifecycle: `--version`, context creation, update hints, help, intro, command dispatch, hooks, telemetry shutdown, and error handling.
-2. Use `dispatchCommand`, `resolveCommandRoute`, or `selectCommand` when the entrypoint owns lifecycle details but should not reimplement command lookup, command-tree routing, unknown-command handling, no-command behavior, or interactive selection.
-3. Use `parseCommandArgs` inside command actions when you need command-local flags, defaults, and positional validation from `context.commandArgs`.
-4. Use `parseCliArgs` when you only need normalized command names, command args, and global flags.
-5. Use `createCliContext` when command execution needs the full runtime context but the entrypoint owns routing.
-6. Use `CliError`, `extendErrorCatalog`, and `withErrorHandling` to keep app-specific failures consistent with shared CLI output.
-7. Use `displayIntro`, `showHelpMenu`, `promptSelect`, `promptMultiselect`, `promptText`, `promptConfirm`, `createSpinner`, `createCliLogger`, `color`, and `renderFiglet` for consistent terminal UX without adding duplicate terminal dependencies.
-8. Use `isVersionRequest`, `printVersionInfo`, and `startBackgroundUpdateCheck` directly when a CLI needs custom version or update-check flow.
-
-## Dispatch And Selection
-
-`dispatchCommand` takes a parsed `CliContext` plus an explicit command table and returns a typed result. Direct command dispatch includes hidden commands by default, while interactive selection excludes hidden commands unless configured otherwise.
-
-```ts
-import { dispatchCommand, showHelpMenu } from "hexbus";
-
-await dispatchCommand(context, commands, {
-  noCommand: {
-    mode: "help",
-    action: ({ context }) =>
-      showHelpMenu(context, { appName: "my-cli", version }, commands, flags),
-  },
-  unknownCommand: {
-    action: ({ commandName, context }) => {
-      context.logger.warn(`Unknown command: ${commandName}`);
-      showHelpMenu(context, { appName: "my-cli", version }, commands, flags);
-    },
-  },
-});
-```
-
-Use `selectCommand` directly when you only need the interactive menu primitive. It returns `selected`, `cancelled`, or `exited` so callers can choose whether to continue, render help, or call their own cancellation handler.
-
-## Interactive Prompts
-
-Hexbus exposes a small prompt API backed by the `@clack/prompts` version pinned inside `hexbus`. Product CLIs can use these helpers without depending on Clack directly, which keeps prompt behavior and cancellation handling consistent in one process.
-
-```ts
-import { promptMultiselect, promptText } from "hexbus";
-
-const projectName = await promptText({
-  message: "Project name",
-  stage: "onboarding.name",
-  telemetry: context.telemetry,
-});
-
-const features = await promptMultiselect({
-  cancel: "silent",
-  message: "Choose features",
-  options: [
-    { label: "Authentication", value: "auth" },
-    { label: "Billing", value: "billing" },
-  ],
-  stage: "onboarding.features",
-  telemetry: context.telemetry,
-});
-
-if (!features) {
-  context.error.handleCancel("Setup cancelled");
-}
-```
-
-The public prompt helpers are `promptSelect`, `promptMultiselect`, `promptText`, and `promptConfirm`. By default, cancelling a prompt throws `CliError("CANCELLED")`; pass `cancel: "silent"` to receive `undefined` and handle cancellation yourself. Each helper accepts optional `stage` and `telemetry` fields; when telemetry is enabled, Hexbus emits a `prompt_interaction` event with the prompt kind, stage, and `submitted` or `cancelled` outcome.
-
-`promptConfirm` always renders a prompt. Use `context.confirm(message)` inside command actions when `-y` or `--yes` should auto-confirm. For long-running work, continue to use `createSpinner` or `withSpinner`; those are the supported spinner wrappers.
-
-Prompt behavior is part of the Hexbus public API and follows Hexbus semver. Consumers migrating from direct Clack imports should replace `@clack/prompts` usage with these helpers and remove Clack from their own dependencies unless they need unsupported primitives.
-
-## Command Trees
-
-Commands can declare nested `subcommands`. `dispatchCommand` and `runCli` resolve the deepest matching route and pass the leaf action a context whose `commandArgs` only contain the remaining args after the command path.
-
-```ts
-import { runCli, type CliCommand } from "hexbus";
-
-const commands: CliCommand[] = [
-  {
-    name: "self-host",
-    label: "Self-host",
-    hint: "Manage self-hosted installs",
-    description: "Manage self-hosted installs.",
-    subcommands: [
-      {
-        name: "migrate",
-        label: "Migrate",
-        hint: "Run migrations",
-        description: "Run self-hosted migrations.",
-        async action(context) {
-          context.logger.info(
-            `Remaining args: ${context.commandArgs.join(",")}`
-          );
-        },
-      },
-    ],
-  },
-];
-
-await runCli({ appName: "my-cli", commands, packageInfo });
-```
-
-For `my-cli self-host migrate prod`, the `migrate` action receives `["prod"]`. For `my-cli self-host --help` or `my-cli self-host missing`, help is scoped to the `self-host` subcommands. Hidden subcommands still resolve when invoked directly but are excluded from help and interactive menus by default.
-
-## Command-Local Args
-
-`parseCliArgs` and `createCliContext` handle global flags and top-level command routing. Command actions can use `parseCommandArgs` for their own local flags and positionals after dispatch has selected a flat command or command-tree leaf.
-
-```ts
-import { parseCommandArgs } from "hexbus";
-
-const args = parseCommandArgs(context.commandArgs, {
-  positionals: [{ name: "name", required: true }],
-  flags: {
-    dev: { names: ["-D", "--dev"], type: "boolean", defaultValue: false },
-    git: { names: ["--git"], type: "string", valueName: "url" },
-    reinvestigate: {
-      names: ["--reinvestigate"],
-      type: "optional-string",
-      valueName: "n",
-    },
-    ref: { names: ["--ref"], type: "string", valueName: "ref" },
-    save: {
-      names: ["--save"],
-      type: "boolean",
-      defaultValue: true,
-      negatedName: "--no-save",
-    },
-  },
-});
-
-context.logger.info(`Adding ${args.positionals.name}`);
-```
-
-`optional-string` flags accept `--flag`, `--flag=value`, and `--flag value`, returning `true`, the provided string, or `undefined`. The helper throws `CliError` for missing required string values, unknown options, missing required positionals, and unexpected extra positionals.
+1. Use `parseCliArgs` when you only need normalized command names, command args, and global flags.
+2. Use `defineCommandArgs`, `mergeCommandArgs`, and `parseCommandArgs` for command-local flags, inherited group options, typed values, defaults, and passthrough args after `--`.
+3. Use `createCliContext` when command execution needs the full runtime context.
+4. Use `generateCompletion` to emit static `bash`, `zsh`, or `fish` completions from the command tree.
+5. Use `outputModeArgs` and `parseOutputMode` when a command needs consistent human, JSON, or quiet output behavior.
+6. Use `runCliTest` for fast command dispatch tests before adding shell-heavy e2e coverage.
+7. Use `CliError`, `extendErrorCatalog`, and `withErrorHandling` to keep app-specific failures consistent with shared CLI output.
+8. Use `displayIntro`, `showHelpMenu`, `createSpinner`, and `createCliLogger` for consistent terminal UX.
+9. Use `isVersionRequest`, `printVersionInfo`, and `startBackgroundUpdateCheck` for fast `-v` / `--version` handling and install-source-aware update hints.
 
 ## Global Flags
 
@@ -252,11 +121,13 @@ context.logger.info(`Adding ${args.positionals.name}`);
 
 ## Core Exports
 
-- Runner: `runCli`, `RunCliOptions`, `RunCliHooks`, `RunCliNoCommandBehavior`
-- Dispatch: `dispatchCommand`, `resolveCommandRoute`, `selectCommand`, `findCommand`, `CommandRoute`, `DispatchCommandResult`, `SelectCommandResult`
 - Context: `createCliContext`, `createTestContext`, `CreateContextOptions`
-- Parser: `parseCliArgs`, `parseCommandArgs`, `parseSubcommand`, `hasFlag`, `getFlagValue`, `globalFlags`
-- Terminal UX: `createCliLogger`, `color`, `createColors`, `renderFiglet`, `figlet`, `promptSelect`, `promptMultiselect`, `promptText`, `promptConfirm`, `createPromptToolkit`, `createSpinner`, `withSpinner`, `displayIntro`, `showHelpMenu`
+- Parser: `parseCliArgs`, `parseSubcommand`, `defineCommandArgs`, `mergeCommandArgs`, `parseCommandArgs`, `hasFlag`, `getFlagValue`, `globalFlags`
+- Command tree: `resolveCommandArgScopes`, `getCommandArgFlagNames`, `commandArgsAcceptFlag`
+- Terminal UX: `createCliLogger`, `createSpinner`, `withSpinner`, `displayIntro`, `showHelpMenu`
+- Output: `outputModeArgs`, `parseOutputMode`, `shouldRenderHumanProgress`, `shouldRenderJson`
+- Completions: `generateCompletion`
+- Tests: `runCliTest`
 - Errors: `CliError`, `createErrorHandlers`, `extendErrorCatalog`, `withErrorHandling`
 - Detection: `detectProjectRoot`, `detectPackageManager`, `detectFramework`, `getInstallCommand`, `getRunCommand`, `getExecCommand`
 - Telemetry: `createTelemetry`, `createDisabledTelemetry`, `TelemetryEventName`
@@ -268,8 +139,45 @@ context.logger.info(`Adding ${args.positionals.name}`);
 
 Inth app CLIs can extend the generic context type when they attach additional services before invoking command actions.
 
+## Command Args
+
+`CliCommand` can declare `args` for leaf command behavior and `inheritedArgs` for command-family behavior. `runCli` uses this metadata for scoped help, route-aware option checks, docs, and completions, while command actions still call `parseCommandArgs(context.commandArgs, spec)` when they need parsed values.
+
+`parseCommandArgs` runtime `defaults` are execution values only. If help or plan output needs to explain where a default came from, put that label on the arg spec with `defaultDescription`; products can still pass the resolved runtime value separately through `defaults`.
+
+```ts
+import { defineCommandArgs, mergeCommandArgs, parseCommandArgs } from 'hexbus';
+
+const projectArgs = defineCommandArgs({
+  flags: {
+    projectId: { names: ['--project-id'], type: 'string', valueName: 'id' },
+  },
+} as const);
+
+const runArgs = mergeCommandArgs(projectArgs, {
+  flags: {
+    concurrency: {
+      names: ['--concurrency'],
+      type: 'integer',
+      min: 1,
+      defaultDescription: 'from amberline.config.ts',
+    },
+    timeout: { names: ['--timeout'], type: 'duration' },
+  },
+} as const);
+
+const parsed = parseCommandArgs(context.commandArgs, runArgs, {
+  defaults: {
+    concurrency: { value: 4, source: 'amberline.config.ts' },
+  },
+  passthrough: true,
+});
+```
+
+## Route Metadata And Compatibility
+
+Commands can declare `aliases`, `category`, `stability`, `telemetryName`, and `docsUrl`. Deprecated command aliases warn when routed, and deprecated flag aliases can report warnings through `parseCommandArgs` without writing directly to stdout.
+
 ## Update Checks
 
-`runCli` handles fast version requests before full context creation and starts background update checks during normal execution by default. Pass `updateCheck: false` to skip the background check, or provide update-check options such as `brewFormula`, `registryUrl`, or `cacheTtlMs`.
-
-Use `isVersionRequest`, `printVersionInfo`, and `startBackgroundUpdateCheck` directly when a CLI needs bespoke update behavior outside the shared runner.
+`hexbus` supports fast version requests before full context creation. Use `isVersionRequest` and `printVersionInfo` for `-v` / `--version`, then call `startBackgroundUpdateCheck` during normal command execution to show cached update hints and refresh stale registry data in the background.

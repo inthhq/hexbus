@@ -45,6 +45,21 @@ export const DEFAULT_ERROR_CATALOG = {
     hint: "Run the setup command to create a configuration",
     message: "Configuration not found",
   },
+  FLAG_VALUE_INVALID: {
+    code: "FLAG_VALUE_INVALID",
+    hint: "Provide a value that matches the option type.",
+    message: "Flag value is invalid",
+  },
+  FLAG_VALUE_NOT_ALLOWED: {
+    code: "FLAG_VALUE_NOT_ALLOWED",
+    hint: "Choose one of the documented values for this option.",
+    message: "Flag value is not allowed",
+  },
+  FLAG_VALUE_OUT_OF_RANGE: {
+    code: "FLAG_VALUE_OUT_OF_RANGE",
+    hint: "Choose a value within the documented range.",
+    message: "Flag value is out of range",
+  },
   FLAG_VALUE_REQUIRED: {
     code: "FLAG_VALUE_REQUIRED",
     message: "Flag requires a value",

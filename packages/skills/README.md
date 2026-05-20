@@ -35,18 +35,15 @@ Small helper package for installing agent skills from Hexbus-powered Inth app CL
 Call `installSkills` from your Inth app CLI command and pass the package manager detected by your CLI context:
 
 ```ts
-import { installSkills } from "@inth/hexbus-skills";
+import { installSkills } from '@inth/hexbus-skills';
 
 await installSkills({
-  skillRef: "my-org/app-skills",
-  packageManager: context.packageManager.name,
-  cwd: context.projectRoot,
-  logger: context.logger,
-  onSuccess: () => context.telemetry.trackEvent("skills_installed"),
-  onFailure: (error) =>
-    context.telemetry.trackError(
-      error instanceof Error ? error : new Error(String(error))
-    ),
+	skillRef: 'my-org/app-skills',
+	packageManager: context.packageManager.name,
+	cwd: context.projectRoot,
+	logger: context.logger,
+	onSuccess: () => context.telemetry.trackEvent('skills_installed'),
+	onFailure: (error) => context.telemetry.trackError(error instanceof Error ? error : new Error(String(error))),
 });
 ```
 
@@ -55,11 +52,9 @@ await installSkills({
 ```bash
 bun add @inth/hexbus-skills
 ```
-
 ```bash
 npm install @inth/hexbus-skills
 ```
-
 ```bash
 pnpm add @inth/hexbus-skills
 ```
