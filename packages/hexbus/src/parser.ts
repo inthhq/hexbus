@@ -1,5 +1,6 @@
+import * as p from "@clack/prompts";
+
 import { formatLogMessage } from "./logger";
-import { openTuiMessage } from "./opentui";
 import type { CliCommand, CliFlag, ParsedArgs } from "./types";
 
 /**
@@ -205,7 +206,7 @@ export function parseCliArgs(
           parsedFlags[primaryName] = nextArg;
           i++;
         } else {
-          openTuiMessage(
+          p.log.warn(
             formatLogMessage(
               "warn",
               `Flag ${arg} expects a value, but none was provided`

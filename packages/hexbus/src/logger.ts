@@ -1,5 +1,6 @@
+import * as p from "@clack/prompts";
+
 import { color } from "./color";
-import { openTuiMessage, openTuiNote } from "./opentui";
 import type { CliLogger, LogLevel } from "./types";
 
 /**
@@ -92,29 +93,25 @@ export function logMessage(
 
   switch (logLevel) {
     case "error": {
-      if (process.stdin.isTTY === true && process.stdout.isTTY === true) {
-        openTuiMessage(formattedMessage);
-      } else {
-        process.stderr.write(`${formattedMessage}\n`);
-      }
+      process.stderr.write(`${formattedMessage}\n`);
       break;
     }
     case "warn": {
-      openTuiMessage(formattedMessage);
+      p.log.warn(formattedMessage);
       break;
     }
     case "info":
     case "debug": {
-      openTuiMessage(formattedMessage);
+      p.log.info(formattedMessage);
       break;
     }
     case "success":
     case "failed": {
-      openTuiMessage(formattedMessage);
+      p.outro(formattedMessage);
       break;
     }
     default: {
-      openTuiMessage(formattedMessage);
+      p.log.message(formattedMessage);
     }
   }
 }
@@ -144,7 +141,7 @@ export function formatStep(
 }
 
 /**
- * Creates a `CliLogger` backed by OpenTUI prompt output.
+ * Creates a `CliLogger` backed by Clack prompt output.
  *
  * @remarks
  * Messages below the configured verbosity are ignored for `debug`, `info`,
@@ -181,16 +178,18 @@ export function createCliLogger(level: LogLevel = "info"): CliLogger {
       }
     },
     message(message: string) {
-      openTuiMessage(message);
+      p.log.message(message);
     },
     note(content: string, title?: string) {
-      openTuiNote(content, title);
+      p.note(content, title, {
+        format: (line: string) => line,
+      });
     },
     outro(message: string) {
-      openTuiMessage(message);
+      p.outro(message);
     },
     step(current: number, total: number, label: string) {
-      openTuiMessage(formatStep(current, total, label));
+      p.log.step(formatStep(current, total, label));
     },
     success(message: string) {
       logMessage("success", message);

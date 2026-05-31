@@ -1,5 +1,4 @@
 import { renderFiglet } from "./figlet";
-import { openTuiIntro } from "./opentui";
 import type { CliContext } from "./types";
 
 /**
@@ -39,7 +38,10 @@ export async function displayIntro(
 ): Promise<void> {
   const banner = await renderFiglet(options.figletText ?? options.appName);
   const versionLabel = options.version ? ` v${options.version}` : "";
-  const content = options.tagline ?? `${options.appName}${versionLabel}`;
 
-  await openTuiIntro(banner, content, options.appName);
+  context.logger.message(banner);
+  context.logger.note(
+    options.tagline ?? `${options.appName}${versionLabel}`,
+    options.appName
+  );
 }

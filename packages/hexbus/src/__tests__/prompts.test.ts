@@ -5,23 +5,19 @@ import { TelemetryEventName } from "../telemetry";
 
 const promptMocks = vi.hoisted(() => ({
   confirm: vi.fn(),
+  isCancel: vi.fn(),
   multiselect: vi.fn(),
   select: vi.fn(),
   text: vi.fn(),
 }));
 
-vi.mock("../opentui", () => {
-  const cancel = Symbol("cancel");
-
-  return {
-    isOpenTuiCancel: (value: unknown) => value === cancel,
-    openTuiConfirm: promptMocks.confirm,
-    openTuiMultiselect: promptMocks.multiselect,
-    openTuiSelect: promptMocks.select,
-    openTuiText: promptMocks.text,
-    promptCancel: cancel,
-  };
-});
+vi.mock("@clack/prompts", () => ({
+  confirm: promptMocks.confirm,
+  isCancel: promptMocks.isCancel,
+  multiselect: promptMocks.multiselect,
+  select: promptMocks.select,
+  text: promptMocks.text,
+}));
 
 const {
   createPromptToolkit,
@@ -30,11 +26,11 @@ const {
   promptSelect,
   promptText,
 } = await import("../prompts");
-const { promptCancel } = await import("../opentui");
 
 describe("prompt helpers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    promptMocks.isCancel.mockReturnValue(false);
   });
 
   it("returns a selected value and tracks submitted telemetry", async () => {
@@ -52,11 +48,10 @@ describe("prompt helpers", () => {
     });
 
     expect(result).toBe("billing");
-    expect(promptMocks.select).toHaveBeenCalledWith(
-      "Choose a feature",
-      [{ label: "Billing", value: "billing" }],
-      undefined
-    );
+    expect(promptMocks.select).toHaveBeenCalledWith({
+      message: "Choose a feature",
+      options: [{ label: "Billing", value: "billing" }],
+    });
     expect(telemetry.trackEvent).toHaveBeenCalledWith(
       TelemetryEventName.PROMPT_INTERACTION,
       {
@@ -68,11 +63,13 @@ describe("prompt helpers", () => {
   });
 
   it("returns undefined for silent cancellation", async () => {
+    const cancel = Symbol("cancel");
     const telemetry = {
       isDisabled: vi.fn(() => false),
       trackEvent: vi.fn(),
     };
-    promptMocks.text.mockResolvedValue(promptCancel);
+    promptMocks.text.mockResolvedValue(cancel);
+    promptMocks.isCancel.mockImplementation((value) => value === cancel);
 
     const result = await promptText({
       cancel: "silent",
@@ -93,7 +90,9 @@ describe("prompt helpers", () => {
   });
 
   it("throws CliError when cancellation is not silent", async () => {
-    promptMocks.confirm.mockResolvedValue(promptCancel);
+    const cancel = Symbol("cancel");
+    promptMocks.confirm.mockResolvedValue(cancel);
+    promptMocks.isCancel.mockImplementation((value) => value === cancel);
 
     await expect(
       promptConfirm({
@@ -161,7 +160,9 @@ describe("prompt helpers", () => {
       isDisabled: vi.fn(() => false),
       trackEvent: vi.fn(),
     };
-    promptMocks.select.mockResolvedValue(promptCancel);
+    const cancel = Symbol("cancel");
+    promptMocks.select.mockResolvedValue(cancel);
+    promptMocks.isCancel.mockImplementation((value) => value === cancel);
 
     const prompts = createPromptToolkit(
       { error: { handleCancel }, telemetry },

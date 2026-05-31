@@ -4,22 +4,17 @@ import { createTestContext } from "../context";
 import type { CliCommand } from "../types";
 
 const promptMocks = vi.hoisted(() => ({
+  isCancel: vi.fn(),
   select: vi.fn(),
 }));
 
-vi.mock("../opentui", () => {
-  const cancel = Symbol("cancel");
-
-  return {
-    isOpenTuiCancel: (value: unknown) => value === cancel,
-    openTuiSelect: promptMocks.select,
-    promptCancel: cancel,
-  };
-});
+vi.mock("@clack/prompts", () => ({
+  isCancel: promptMocks.isCancel,
+  select: promptMocks.select,
+}));
 
 const { dispatchCommand, findCommand, selectCommand } =
   await import("../dispatch");
-const { promptCancel } = await import("../opentui");
 
 function createCommand(
   name: string,
@@ -53,6 +48,7 @@ describe(findCommand, () => {
 describe(selectCommand, () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    promptMocks.isCancel.mockReturnValue(false);
   });
 
   it("selects visible commands and excludes hidden commands by default", async () => {
@@ -71,9 +67,9 @@ describe(selectCommand, () => {
       command: visibleCommand,
       type: "selected",
     });
-    expect(promptMocks.select).toHaveBeenCalledWith(
-      "Select a command",
-      [
+    expect(promptMocks.select).toHaveBeenCalledWith({
+      message: "Select a command",
+      options: [
         {
           hint: "Run visible",
           label: "visible",
@@ -85,8 +81,7 @@ describe(selectCommand, () => {
           value: "__hexbus_exit__",
         },
       ],
-      undefined
-    );
+    });
   });
 
   it("returns exited when the configured exit option is selected", async () => {
@@ -98,21 +93,22 @@ describe(selectCommand, () => {
     });
 
     expect(result).toStrictEqual({ type: "exited" });
-    expect(promptMocks.select).toHaveBeenCalledWith(
-      "Select a command",
-      [
+    expect(promptMocks.select).toHaveBeenCalledWith({
+      message: "Select a command",
+      options: [
         {
           hint: undefined,
           label: "Quit",
           value: "quit",
         },
       ],
-      undefined
-    );
+    });
   });
 
   it("returns cancelled when the prompt is cancelled", async () => {
-    promptMocks.select.mockResolvedValue(promptCancel);
+    const cancel = Symbol("cancel");
+    promptMocks.select.mockResolvedValue(cancel);
+    promptMocks.isCancel.mockImplementation((value) => value === cancel);
 
     const result = await selectCommand(createTestContext(), [
       createCommand("visible"),
@@ -125,6 +121,7 @@ describe(selectCommand, () => {
 describe(dispatchCommand, () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    promptMocks.isCancel.mockReturnValue(false);
   });
 
   it("dispatches a matched command and runs success hooks in order", async () => {
@@ -270,9 +267,9 @@ describe(dispatchCommand, () => {
       }
     );
 
-    expect(promptMocks.select).toHaveBeenCalledWith(
-      "Choose a command",
-      [
+    expect(promptMocks.select).toHaveBeenCalledWith({
+      message: "Choose a command",
+      options: [
         {
           hint: "Run visible",
           label: "visible",
@@ -284,8 +281,7 @@ describe(dispatchCommand, () => {
           value: "__hexbus_exit__",
         },
       ],
-      undefined
-    );
+    });
     expect(action).toHaveBeenCalledWith(
       expect.objectContaining({
         commandArgs: [],
@@ -332,7 +328,9 @@ describe(dispatchCommand, () => {
       },
     });
 
-    promptMocks.select.mockResolvedValueOnce(promptCancel);
+    const cancel = Symbol("cancel");
+    promptMocks.select.mockResolvedValueOnce(cancel);
+    promptMocks.isCancel.mockImplementation((value) => value === cancel);
 
     const cancelResult = await dispatchCommand(context, [command], {
       noCommand: { mode: "interactive" },
@@ -474,9 +472,9 @@ describe(dispatchCommand, () => {
       },
     });
 
-    expect(promptMocks.select).toHaveBeenCalledWith(
-      "Select a command",
-      [
+    expect(promptMocks.select).toHaveBeenCalledWith({
+      message: "Select a command",
+      options: [
         {
           hint: "Run migrate",
           label: "migrate",
@@ -488,8 +486,7 @@ describe(dispatchCommand, () => {
           value: "__hexbus_exit__",
         },
       ],
-      undefined
-    );
+    });
     expect(onSelectionOpen).toHaveBeenCalledWith({
       commandNames: ["tools"],
       commandPath: [toolsCommand],

@@ -1,11 +1,6 @@
+import * as p from "@clack/prompts";
+
 import { CliError } from "./errors";
-import {
-  isOpenTuiCancel,
-  openTuiConfirm,
-  openTuiMultiselect,
-  openTuiSelect,
-  openTuiText,
-} from "./opentui";
 import { TelemetryEventName } from "./telemetry";
 import type { ErrorHandlers, Telemetry } from "./types";
 
@@ -21,6 +16,9 @@ export type PromptKind = "confirm" | "multiselect" | "select" | "text";
 
 type PromptTelemetry = Pick<Telemetry, "trackEvent"> &
   Partial<Pick<Telemetry, "isDisabled">>;
+type ClackSelectOption<TValue extends string> = Parameters<
+  typeof p.select<TValue>
+>[0]["options"][number];
 
 interface PromptBaseOptions {
   /**
@@ -200,6 +198,17 @@ function shouldTrackTelemetry(telemetry: PromptTelemetry | undefined): boolean {
   return telemetry !== undefined && telemetry.isDisabled?.() !== true;
 }
 
+function toClackOptions<TValue extends string>(
+  options: PromptChoice<TValue>[]
+): ClackSelectOption<TValue>[] {
+  const clackOptions = options.map((option) => ({
+    label: option.label,
+    value: option.value,
+    ...(option.hint === undefined ? {} : { hint: option.hint }),
+  }));
+  return clackOptions as ClackSelectOption<TValue>[];
+}
+
 function trackPrompt(
   kind: PromptKind,
   outcome: "cancelled" | "submitted",
@@ -246,13 +255,18 @@ export async function promptSelect<TValue extends string = string>(
 export async function promptSelect<TValue extends string = string>(
   options: PromptSelectOptions<TValue>
 ): Promise<TValue | undefined> {
-  const result = await openTuiSelect(
-    options.message,
-    options.options,
-    options.initialValue
-  );
+  const promptOptions = {
+    message: options.message,
+    options: toClackOptions(options.options),
+  };
+  const result = await p.select({
+    ...promptOptions,
+    ...(options.initialValue === undefined
+      ? {}
+      : { initialValue: options.initialValue }),
+  });
 
-  if (isOpenTuiCancel(result)) {
+  if (p.isCancel(result)) {
     return handleCancelledPrompt<TValue>("select", options);
   }
 
@@ -272,14 +286,19 @@ export async function promptMultiselect<TValue extends string = string>(
 export async function promptMultiselect<TValue extends string = string>(
   options: PromptMultiselectOptions<TValue>
 ): Promise<TValue[] | undefined> {
-  const result = await openTuiMultiselect(
-    options.message,
-    options.options,
-    options.initialValues,
-    options.required
-  );
+  const promptOptions = {
+    message: options.message,
+    options: toClackOptions(options.options),
+  };
+  const result = await p.multiselect({
+    ...promptOptions,
+    ...(options.initialValues === undefined
+      ? {}
+      : { initialValues: options.initialValues }),
+    ...(options.required === undefined ? {} : { required: options.required }),
+  });
 
-  if (isOpenTuiCancel(result)) {
+  if (p.isCancel(result)) {
     return handleCancelledPrompt<TValue[]>("multiselect", options);
   }
 
@@ -300,15 +319,24 @@ export async function promptText(options: PromptTextOptions): Promise<string>;
 export async function promptText(
   options: PromptTextOptions
 ): Promise<string | undefined> {
-  const result = await openTuiText({
-    defaultValue: options.defaultValue,
-    initialValue: options.initialValue,
+  const promptOptions = {
     message: options.message,
-    placeholder: options.placeholder,
-    validate: options.validate,
+  };
+  const result = await p.text({
+    ...promptOptions,
+    ...(options.defaultValue === undefined
+      ? {}
+      : { defaultValue: options.defaultValue }),
+    ...(options.initialValue === undefined
+      ? {}
+      : { initialValue: options.initialValue }),
+    ...(options.placeholder === undefined
+      ? {}
+      : { placeholder: options.placeholder }),
+    ...(options.validate === undefined ? {} : { validate: options.validate }),
   });
 
-  if (isOpenTuiCancel(result)) {
+  if (p.isCancel(result)) {
     return handleCancelledPrompt<string>("text", options);
   }
 
@@ -332,9 +360,17 @@ export async function promptConfirm(
 export async function promptConfirm(
   options: PromptConfirmOptions
 ): Promise<boolean | undefined> {
-  const result = await openTuiConfirm(options.message, options.initialValue);
+  const promptOptions = {
+    message: options.message,
+  };
+  const result = await p.confirm({
+    ...promptOptions,
+    ...(options.initialValue === undefined
+      ? {}
+      : { initialValue: options.initialValue }),
+  });
 
-  if (isOpenTuiCancel(result)) {
+  if (p.isCancel(result)) {
     return handleCancelledPrompt<boolean>("confirm", options);
   }
 
