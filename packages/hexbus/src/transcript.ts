@@ -59,7 +59,9 @@ function isTranscriptFormat(value: string): value is TranscriptFormat {
 }
 
 function isBufferEncoding(value: unknown): value is BufferEncoding {
-  return typeof value === "string" && TEXT_ENCODINGS.has(value as BufferEncoding);
+  return (
+    typeof value === "string" && TEXT_ENCODINGS.has(value as BufferEncoding)
+  );
 }
 
 function normalizeFormat(value: string | undefined): TranscriptFormat {
@@ -183,7 +185,9 @@ export function startOutputTranscript(
   const originalStdoutWrite = process.stdout.write.bind(process.stdout);
   const originalStderrWrite = process.stderr.write.bind(process.stderr);
 
-  const captureStdoutWrite = ((...args: Parameters<typeof process.stdout.write>) => {
+  const captureStdoutWrite = ((
+    ...args: Parameters<typeof process.stdout.write>
+  ) => {
     const [chunk, encodingOrCallback] = args;
     appendTranscriptOutput(
       options.filePath,
@@ -194,7 +198,9 @@ export function startOutputTranscript(
     return originalStdoutWrite(...args);
   }) as typeof process.stdout.write;
 
-  const captureStderrWrite = ((...args: Parameters<typeof process.stderr.write>) => {
+  const captureStderrWrite = ((
+    ...args: Parameters<typeof process.stderr.write>
+  ) => {
     const [chunk, encodingOrCallback] = args;
     appendTranscriptOutput(
       options.filePath,
@@ -209,7 +215,9 @@ export function startOutputTranscript(
   process.stderr.write = captureStderrWrite;
 
   return {
-    close(exitCode = typeof process.exitCode === "number" ? process.exitCode : 0) {
+    close(
+      exitCode = typeof process.exitCode === "number" ? process.exitCode : 0
+    ) {
       process.stdout.write = originalStdoutWrite as typeof process.stdout.write;
       process.stderr.write = originalStderrWrite as typeof process.stderr.write;
       if (options.format === "jsonl") {
