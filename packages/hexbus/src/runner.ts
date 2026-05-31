@@ -515,8 +515,7 @@ interface RunCliState<
 
 async function handleVersionRequest(
   options: Pick<RunCliOptions, "appName" | "packageInfo">,
-  rawArgs: string[],
-  context?: Pick<CliContext, "logger">
+  rawArgs: string[]
 ): Promise<boolean> {
   if (!isVersionRequest(rawArgs)) {
     return false;
@@ -525,7 +524,6 @@ async function handleVersionRequest(
   await printVersionInfo({
     appName: options.appName,
     currentVersion: options.packageInfo.version,
-    logger: context?.logger,
     packageName: options.packageInfo.name,
   });
   return true;
@@ -812,7 +810,7 @@ export async function runCli<
         });
 
   try {
-    if (await handleVersionRequest(options, rawArgs, state.context)) {
+    if (await handleVersionRequest(options, rawArgs)) {
       return;
     }
 

@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import fsPromises from "node:fs/promises";
 import path from "node:path";
 
 /**
@@ -94,6 +95,17 @@ function appendJsonLine(
   fs.appendFileSync(filePath, `${JSON.stringify(payload)}\n`, "utf-8");
 }
 
+function appendJsonLineAsync(
+  filePath: string,
+  payload: Readonly<Record<string, unknown>>
+): Promise<void> {
+  return fsPromises.appendFile(
+    filePath,
+    `${JSON.stringify(payload)}\n`,
+    "utf-8"
+  );
+}
+
 function appendTranscriptOutput(
   filePath: string,
   format: TranscriptFormat,
@@ -115,6 +127,14 @@ function appendTranscriptOutput(
   fs.appendFileSync(filePath, text, "utf-8");
 }
 
+function nextFlagValue(
+  rawArgs: readonly string[],
+  index: number
+): string | undefined {
+  const value = rawArgs[index + 1];
+  return value !== undefined && !value.startsWith("--") ? value : undefined;
+}
+
 /**
  * Parses Hexbus transcript flags without requiring a full command table.
  *
@@ -133,8 +153,11 @@ export function parseTranscriptFlags(
       continue;
     }
     if (arg === "--log-file") {
-      filePath = rawArgs[index + 1];
-      index++;
+      const value = nextFlagValue(rawArgs, index);
+      if (value !== undefined) {
+        filePath = value;
+        index++;
+      }
       continue;
     }
     if (arg.startsWith("--log-file=")) {
@@ -142,8 +165,11 @@ export function parseTranscriptFlags(
       continue;
     }
     if (arg === "--log-format") {
-      format = rawArgs[index + 1];
-      index++;
+      const value = nextFlagValue(rawArgs, index);
+      if (value !== undefined) {
+        format = value;
+        index++;
+      }
       continue;
     }
     if (arg.startsWith("--log-format=")) {
@@ -184,6 +210,34 @@ export function startOutputTranscript(
 
   const originalStdoutWrite = process.stdout.write.bind(process.stdout);
   const originalStderrWrite = process.stderr.write.bind(process.stderr);
+  let closed = false;
+
+  const endPayload = (exitCode: number) => ({
+    durationMs: Date.now() - startedAt,
+    exitCode,
+    timestamp: new Date().toISOString(),
+    type: "end",
+  });
+
+  function restoreStreams(): void {
+    process.stdout.write = originalStdoutWrite as typeof process.stdout.write;
+    process.stderr.write = originalStderrWrite as typeof process.stderr.write;
+  }
+
+  function closeSync(exitCode: number): void {
+    if (closed) {
+      return;
+    }
+    closed = true;
+    restoreStreams();
+    if (options.format === "jsonl") {
+      appendJsonLine(options.filePath, endPayload(exitCode));
+    }
+  }
+
+  function onExit(exitCode: number): void {
+    closeSync(exitCode);
+  }
 
   const captureStdoutWrite = ((
     ...args: Parameters<typeof process.stdout.write>
@@ -213,22 +267,21 @@ export function startOutputTranscript(
 
   process.stdout.write = captureStdoutWrite;
   process.stderr.write = captureStderrWrite;
+  process.once("exit", onExit);
 
   return {
-    close(
+    async close(
       exitCode = typeof process.exitCode === "number" ? process.exitCode : 0
     ) {
-      process.stdout.write = originalStdoutWrite as typeof process.stdout.write;
-      process.stderr.write = originalStderrWrite as typeof process.stderr.write;
-      if (options.format === "jsonl") {
-        appendJsonLine(options.filePath, {
-          durationMs: Date.now() - startedAt,
-          exitCode,
-          timestamp: new Date().toISOString(),
-          type: "end",
-        });
+      if (closed) {
+        return;
       }
-      return Promise.resolve();
+      closed = true;
+      restoreStreams();
+      process.off("exit", onExit);
+      if (options.format === "jsonl") {
+        await appendJsonLineAsync(options.filePath, endPayload(exitCode));
+      }
     },
     filePath: options.filePath,
     format: options.format,
