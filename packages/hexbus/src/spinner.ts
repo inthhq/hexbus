@@ -1,4 +1,4 @@
-import { spinner as createClackSpinner } from "@clack/prompts";
+import { openTuiMessage } from "./opentui";
 
 /**
  * Minimal spinner controller used for long-running CLI tasks.
@@ -19,24 +19,31 @@ export interface Spinner {
 }
 
 /**
- * Creates a Clack-backed spinner.
+ * Creates an OpenTUI-backed spinner-compatible progress reporter.
  *
  * @param initialMessage - Message used when `start()` is called without an
  * explicit message.
  * @returns A spinner controller.
  */
-export function createSpinner(initialMessage?: string): Spinner {
-  const spinnerInstance = createClackSpinner();
+export function createSpinner(initialMessage = "Processing..."): Spinner {
+  let currentMessage = initialMessage;
+  let running = false;
 
   return {
     message(message: string) {
-      spinnerInstance.message(message);
+      currentMessage = message;
+      if (running) {
+        openTuiMessage(`... ${message}`);
+      }
     },
     start(message?: string) {
-      spinnerInstance.start(message ?? initialMessage ?? "Processing...");
+      currentMessage = message ?? currentMessage;
+      running = true;
+      openTuiMessage(`... ${currentMessage}`);
     },
     stop(message?: string) {
-      spinnerInstance.stop(message ?? "Done");
+      running = false;
+      openTuiMessage(message ?? "Done");
     },
   };
 }

@@ -1,3 +1,5 @@
+import { formatLogMessage } from "./logger";
+import { openTuiExit } from "./opentui";
 import type { CliLogger } from "./types";
 
 /**
@@ -243,13 +245,13 @@ export function createErrorHandlers(
       message = "Operation cancelled",
       context?: { command?: string; stage?: string }
     ): never {
-      logger.warn(message);
+      const messages = [formatLogMessage("warn", message)];
 
       if (context?.command) {
-        logger.info(`Command: ${context.command}`);
+        messages.push(formatLogMessage("info", `Command: ${context.command}`));
       }
 
-      process.exit(0);
+      return openTuiExit(messages, 0);
     },
 
     handleError(error: unknown, command: string): never {
@@ -264,8 +266,22 @@ export function createErrorHandlers(
             : String(telemetryError);
         logger.warn(`Failed to track error telemetry: ${message}`);
       }
-      cliError.display(logger);
-      process.exit(1);
+      let { message } = cliError.entry;
+      if (cliError.context?.details) {
+        message += `: ${cliError.context.details}`;
+      }
+
+      const messages = [formatLogMessage("error", message)];
+
+      if (cliError.entry.hint) {
+        messages.push(formatLogMessage("info", `Hint: ${cliError.entry.hint}`));
+      }
+
+      if (cliError.entry.docs) {
+        messages.push(formatLogMessage("info", `Docs: ${cliError.entry.docs}`));
+      }
+
+      return openTuiExit(messages, 1);
     },
   };
 }

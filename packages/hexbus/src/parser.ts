@@ -1,6 +1,5 @@
-import * as p from "@clack/prompts";
-
 import { formatLogMessage } from "./logger";
+import { openTuiMessage } from "./opentui";
 import type { CliCommand, CliFlag, ParsedArgs } from "./types";
 
 /**
@@ -28,6 +27,19 @@ export const globalFlags: CliFlag[] = [
     description: "Set log level (error, warn, info, debug)",
     expectsValue: true,
     names: ["--logger"],
+    type: "string",
+  },
+  {
+    description: "Write stdout and stderr to a transcript file",
+    expectsValue: true,
+    names: ["--log-file"],
+    type: "string",
+  },
+  {
+    defaultValue: "text",
+    description: "Set transcript format (text, jsonl)",
+    expectsValue: true,
+    names: ["--log-format"],
     type: "string",
   },
   {
@@ -193,7 +205,7 @@ export function parseCliArgs(
           parsedFlags[primaryName] = nextArg;
           i++;
         } else {
-          p.log.warn(
+          openTuiMessage(
             formatLogMessage(
               "warn",
               `Flag ${arg} expects a value, but none was provided`
