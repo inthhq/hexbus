@@ -1,5 +1,11 @@
 # hexbus
 
+## 0.6.3
+
+### Patch Changes
+
+- 8750698: Add `--log-file` and `--log-format` transcript capture for CLI output.
+
 ## 0.6.2
 
 ### Patch Changes
