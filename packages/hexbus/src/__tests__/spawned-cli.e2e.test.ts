@@ -19,6 +19,7 @@ const versionCachePath = path.join(
   versionCacheDir,
   `${FIXTURE_PACKAGE_NAME}.json`
 );
+const transcriptDir = path.join(os.tmpdir(), "hexbus-transcripts");
 
 interface FixtureCliResult {
   code: number | null;
@@ -44,6 +45,14 @@ async function writeVersionCache(): Promise<void> {
       version: FIXTURE_VERSION,
     })}\n`,
     "utf-8"
+  );
+}
+
+async function makeTranscriptPath(name: string): Promise<string> {
+  await fs.mkdir(transcriptDir, { recursive: true });
+  return path.join(
+    transcriptDir,
+    `${name}-${Date.now()}-${Math.random().toString(16).slice(2)}.log`
   );
 }
 
@@ -102,6 +111,7 @@ beforeEach(async () => {
 
 afterAll(async () => {
   await fs.rm(versionCachePath, { force: true });
+  await fs.rm(transcriptDir, { force: true, recursive: true });
 });
 
 describe("spawned fixture CLI", () => {
@@ -194,5 +204,58 @@ describe("spawned fixture CLI", () => {
 
     expectCleanExit(result);
     expect(result.stdout).toContain("telemetry disabled: true");
+  });
+
+  it("writes a plain text output transcript with --log-file", async () => {
+    const transcriptPath = await makeTranscriptPath("plain");
+    const result = await runFixtureCli([
+      "--log-file",
+      transcriptPath,
+      "hello",
+      "transcript",
+    ]);
+
+    expectCleanExit(result);
+    const transcript = await fs.readFile(transcriptPath, "utf-8");
+    expect(transcript).toContain("hello args: transcript");
+  });
+
+  it("writes structured JSONL output with --log-format jsonl", async () => {
+    const transcriptPath = await makeTranscriptPath("jsonl");
+    const result = await runFixtureCli([
+      "--log-file",
+      transcriptPath,
+      "--log-format",
+      "jsonl",
+      "hello",
+      "agent",
+    ]);
+
+    expectCleanExit(result);
+    const transcript = await fs.readFile(transcriptPath, "utf-8");
+    const lines = transcript
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+    expect(lines[0]).toMatchObject({
+      appName: "fixture-cli",
+      format: "jsonl",
+      type: "start",
+    });
+    expect(lines).toContainEqual(
+      expect.objectContaining({
+        stream: "stdout",
+        type: "output",
+      })
+    );
+    expect(
+      lines.some(
+        (line) =>
+          line.type === "output" &&
+          typeof line.text === "string" &&
+          line.text.includes("hello args: agent")
+      )
+    ).toBe(true);
+    expect(lines.at(-1)).toMatchObject({ type: "end" });
   });
 });

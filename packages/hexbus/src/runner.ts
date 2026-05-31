@@ -19,6 +19,7 @@ import { displayIntro } from "./intro";
 import type { DisplayIntroOptions } from "./intro";
 import { globalFlags } from "./parser";
 import { TelemetryEventName } from "./telemetry";
+import { parseTranscriptFlags, startOutputTranscript } from "./transcript";
 import type { CliCommand, CliContext, CliFlag, PackageInfo } from "./types";
 import {
   isVersionRequest,
@@ -796,14 +797,23 @@ export async function runCli<
   TContext extends CliContext<TPackage> = CliContext<TPackage>,
 >(options: RunCliOptions<TPackage, TContext>): Promise<void> {
   const rawArgs = options.rawArgs ?? process.argv.slice(2);
-
-  if (await handleVersionRequest(options, rawArgs)) {
-    return;
-  }
-
   const state: RunCliState<TPackage, TContext> = { outcome: "completed" };
+  const transcriptFlags = parseTranscriptFlags(rawArgs);
+  const transcript =
+    transcriptFlags === null
+      ? null
+      : startOutputTranscript({
+          ...transcriptFlags,
+          appName: options.appName,
+          cwd: options.context?.cwd ?? process.cwd(),
+          rawArgs,
+        });
 
   try {
+    if (await handleVersionRequest(options, rawArgs)) {
+      return;
+    }
+
     state.context = await createRunnerContext(options, rawArgs);
     state.context.telemetry.trackEvent(TelemetryEventName.CLI_INVOKED, {
       command: state.context.commandName ?? "none",
@@ -833,5 +843,9 @@ export async function runCli<
     await shutdownRunnerTelemetry(state);
   }
 
-  handleRunnerError(state);
+  try {
+    handleRunnerError(state);
+  } finally {
+    await transcript?.close(state.errorToHandle === undefined ? 0 : 1);
+  }
 }

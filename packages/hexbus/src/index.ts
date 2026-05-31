@@ -172,6 +172,14 @@ export {
   type TelemetryEventNameType,
   type TelemetryOptions,
 } from "./telemetry";
+export {
+  type OutputTranscript,
+  parseTranscriptFlags,
+  type StartTranscriptOptions,
+  startOutputTranscript,
+  type TranscriptFlagOptions,
+  type TranscriptFormat,
+} from "./transcript";
 export type {
   CliCommandAlias,
   CliCommandCategory,

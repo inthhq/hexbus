@@ -31,6 +31,19 @@ export const globalFlags: CliFlag[] = [
     type: "string",
   },
   {
+    description: "Write stdout and stderr to a transcript file",
+    expectsValue: true,
+    names: ["--log-file"],
+    type: "string",
+  },
+  {
+    defaultValue: "text",
+    description: "Set transcript format (text, jsonl)",
+    expectsValue: true,
+    names: ["--log-format"],
+    type: "string",
+  },
+  {
     defaultValue: false,
     description: "Force color output",
     expectsValue: false,
