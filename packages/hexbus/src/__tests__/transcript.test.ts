@@ -5,11 +5,7 @@ import { parseTranscriptFlags } from "../transcript";
 describe(parseTranscriptFlags, () => {
   it("parses spaced and equals-form transcript flags", () => {
     expect(
-      parseTranscriptFlags([
-        "--log-file",
-        "run.log",
-        "--log-format=jsonl",
-      ])
+      parseTranscriptFlags(["--log-file", "run.log", "--log-format=jsonl"])
     ).toStrictEqual({
       filePath: "run.log",
       format: "jsonl",
